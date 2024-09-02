@@ -1,2 +1,2 @@
 // export the plugin
-export { SanityPlugin } from './plugin/plugin';
+export { TranslationPlugin } from './plugin/plugin';

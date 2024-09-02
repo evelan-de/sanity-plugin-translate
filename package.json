@@ -1,19 +1,19 @@
 {
-  "name": "sanity-plugin-starter-template",
+  "name": "sanity-plugin-translate",
   "version": "1.0.0",
-  "description": "A starter template for creating a clean slate of a Sanity Plugin.",
+  "description": "A sanity plugin for the implementation of deepl api",
   "keywords": [
     "sanity",
     "sanity-plugin",
     "sanity-plugin-starter-template"
   ],
-  "homepage": "https://github.com/evelan-de/sanity-plugin-starter-template#readme",
+  "homepage": "https://github.com/evelan-de/sanity-plugin-translate#readme",
   "bugs": {
-    "url": "https://github.com/evelan-de/sanity-plugin-starter-template/issues"
+    "url": "https://github.com/evelan-de/sanity-plugin-translate/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/evelan-de/sanity-plugin-starter-template.git"
+    "url": "git+ssh://git@github.com:evelan-de/sanity-plugin-translate.git"
   },
   "license": "MIT",
   "author": "Evelan <kontakt@evelan.de>",
