@@ -19,13 +19,6 @@ export const translationQuery = `
   "_translations": *[_type == "translation.metadata" && references(^._id)].translations[].value->{
     _id,
     language
-}
+  }
 }
 `;
-
-export const I18N_NAMESPACE = 'translate';
-
-export const API = {
-  TRANSLATE: '/api/translate',
-  FIX_REFERENCE: '/api/fix-references',
-} as const;
