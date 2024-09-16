@@ -1,6 +1,6 @@
 {
   "name": "sanity-plugin-translate",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A sanity plugin for the implementation of deepl api",
   "keywords": [
     "sanity",
@@ -100,7 +100,11 @@
     "sanity": "^3",
     "zod": "3.23.8"
   },
+  "browserslist": "extends @sanity/browserslist-config",
   "engines": {
     "node": ">=18"
+  },
+  "overrides": {
+    "conventional-changelog-conventionalcommits": ">= 8.0.0"
   }
 }
