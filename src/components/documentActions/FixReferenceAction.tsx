@@ -1,14 +1,26 @@
 import { TranslateIcon } from '@sanity/icons';
 import { useToast } from '@sanity/ui';
 import { useMemo, useState } from 'react';
-import { DocumentActionProps, useTranslation } from 'sanity';
+import { DocumentActionProps, useClient, useTranslation } from 'sanity';
 
-import { I18N_NAMESPACE } from '../../utils/constants';
+import { TranslationPluginOptions } from '../../types/TranslationPluginOptions';
+import { API, I18N_NAMESPACE } from '../../utils/constants';
 import AnimatedSpinnerIcon from '../CircleLoadingIcon';
-// import { API } from 'src/modules/common/constants';
 
-const FixReferenceAction = ({ id, type, published }: DocumentActionProps) => {
+type ExtendedDocumentActionProps = DocumentActionProps &
+  TranslationPluginOptions;
+
+const FixReferenceAction = ({
+  id,
+  type,
+  published,
+  BASE_URL,
+}: ExtendedDocumentActionProps) => {
   const { t } = useTranslation(I18N_NAMESPACE);
+  const client = useClient({
+    apiVersion: '2021-10-21',
+  });
+
   const docId = useMemo(() => {
     if (!published) {
       return `drafts.${id}`;
@@ -17,6 +29,15 @@ const FixReferenceAction = ({ id, type, published }: DocumentActionProps) => {
     return id;
   }, [id, published]);
   const toast = useToast();
+  const getApiKey = async () => {
+    const result = await client.fetch<{
+      apiKey: string;
+    }>(`*[_type=="jexity.translationApiKey"][0]{
+      apiKey
+    }`);
+
+    return result.apiKey;
+  };
 
   const [loading, setLoading] = useState(false);
   /**
@@ -28,24 +49,26 @@ const FixReferenceAction = ({ id, type, published }: DocumentActionProps) => {
    */
   const fixReferences = async () => {
     setLoading(true); // Indicate the operation is in progress
+    const apiKey = await getApiKey();
     try {
-      // const response = await fetch(API.FIX_REFERENCE, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({ docId, type }), // Send the document ID for translation
-      // });
-      // const { isTranslated } = await response.json(); // Parse the response JSON
-      // if (isTranslated) {
-      // Do something, like notification
-      toast.push({
-        status: 'success',
-        title: t('fixReferenceAction.toast.success.title'),
-        description: t('fixReferenceAction.toast.success.description'),
-        duration: 4000,
+      const response = await fetch(`${BASE_URL}${API.FIX_REFERENCE}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-webhook-secret': apiKey,
+        },
+        body: JSON.stringify({ docId, type }), // Send the document ID for translation
       });
-      // }
+      const { isTranslated } = await response.json(); // Parse the response JSON
+      if (isTranslated) {
+        // Do something, like notification
+        toast.push({
+          status: 'success',
+          title: t('fixReferenceAction.toast.success.title'),
+          description: t('fixReferenceAction.toast.success.description'),
+          duration: 4000,
+        });
+      }
     } catch (error) {
       toast.push({
         status: 'success',
