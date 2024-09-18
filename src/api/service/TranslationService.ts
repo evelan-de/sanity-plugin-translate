@@ -1,8 +1,17 @@
 import * as deepl from 'deepl-node';
 import { SanityClient, SanityDocumentLike } from 'sanity';
 
+import { TranslationServiceOptions } from '../../types/translationApi';
 import { processPromisesInChunks } from '../../utils/promiseUtils';
-import { loadDocumentTranslationsAndReplace } from '../queries/documentLoader';
+import {
+  DocumentComparisonMetadata,
+  DocumentComparisonMetadataArray,
+  loadDocumentData,
+  loadDocumentTranslationsAndReplace,
+  loadDocumentVersions,
+  TranslationApiRequestBody,
+  TranslationMetadata,
+} from '../queries/documentLoader';
 
 // add here the string type keys that need to be translated
 const translatableFieldKeys = [
@@ -22,97 +31,6 @@ const translatableFieldKeys = [
 
 // add here the array type keys that need to be translated
 const translatableArrayFieldKeys = ['keywords'];
-
-const processReferenceObjects = async (
-  referenceObjects: unknown[],
-  documentData: SanityDocumentLike,
-  documentLanguage: string,
-  client: SanityClient,
-) => {
-  const promises = referenceObjects.map(async (referenceObject: unknown) => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      const referenceObjectId: string = (referenceObject as { _ref: string })
-        ._ref;
-
-      const documentTranslations: {
-        originalId: string;
-        newId: string | undefined;
-      } | null = await loadDocumentTranslationsAndReplace(
-        referenceObjectId,
-        documentLanguage,
-        client,
-      );
-
-      if (documentTranslations?.newId === undefined) {
-        return;
-      }
-      // eslint-disable-next-line no-unused-expressions
-      [];
-
-      replaceRefId(
-        documentData,
-        documentTranslations.originalId,
-        documentTranslations.newId,
-      );
-    } catch (error) {
-      console.error(`Error processing reference object: ${error}`);
-      // Optionally handle errors, e.g., continue processing other items, log errors, etc.
-    }
-  });
-
-  // No need to get the return value, just process the promises in chunks
-  await processPromisesInChunks(promises, 3);
-
-  return documentData; // Return the modified documentData
-};
-
-/**
- * Translates the document data for a given document ID and type.
- * This function loads the document data, identifies the language, finds all reference objects within the document,
- * processes these references, and then translates the document data into the specified language using the DeepL API.
- * Finally, it updates the document in the Sanity server with the translated data.
- *
- * @param {string} docID - The ID of the document to be translated.
- * @param {string} type - The type of the document.
- * @returns {Promise<{translatedJsonData: any}>} - Returns an object containing the translated document data.
- * @throws {Error} - Throws an error if no document data or language is found.
- */
-
-export const translateDocument = async (
-  document: SanityDocumentLike,
-  client: SanityClient,
-) => {
-  // Extract the language from the document data
-  let language = document.language;
-  if (!language) {
-    throw new Error('No language found');
-  }
-
-  // Find all reference objects within the document body
-  const referenceObjects = findAllReferenceObjects(document);
-
-  // Process the reference objects to prepare for translation
-  const processedDocumentData = await processReferenceObjects(
-    referenceObjects,
-    document, // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    language as string,
-    client,
-  );
-
-  // Adjust the language code if necessary
-  if (language === 'en') {
-    language = 'en-US';
-  }
-
-  // Translate the processed document data using the DeepL API
-  const { translatedJsonData } = await translateJSONData(
-    processedDocumentData, // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    language as deepl.TargetLanguageCode,
-  );
-
-  return { translatedJsonData };
-};
 
 /**
  * Replaces translations in the given object based on the provided translation mappings.
@@ -174,7 +92,6 @@ const replaceTranslations = (
     }
   });
 };
-
 /**
  * Maps fields within a data object to determine which fields are translatable based on predefined keys.
  * This function recursively explores objects and arrays to identify translatable fields.
@@ -237,24 +154,98 @@ const mapFieldsToTranslate = (
   return { fieldsToTranslate, arrayFieldsToTranslate };
 };
 
-/**
- * Translates JSON data using the DeepL API based on specified language.
- *
- * This function takes a SanityDocumentLike JSON object and a target language code,
- * then performs translation of the document's fields and array fields marked for translation.
- * It uses the DeepL API for translating text and handles batch translations to optimize API calls.
- *
- * @param {SanityDocumentLike} jsonData - The JSON data to be translated.
- * @param {deepl.TargetLanguageCode} language - The target language code for translation.
- * @returns {Promise<{translatedJsonData: SanityDocumentLike, batchedTranslations: string[]}>}
- *          Returns an object containing the translated JSON data and an array of batched translations.
- * @throws {Error} Throws an error if the DeepL API key is not found.
- */
+export const findDocumentType = (data: TranslationApiRequestBody) => {
+  if (!data) {
+    return null;
+  }
+  if ('type' in data && data.type) {
+    return data.type;
+  }
+  if (!('before' in data && 'after' in data)) {
+    return null;
+  }
+  const newTranslation = findNewTranslation(data);
+  if (!newTranslation?.value?._strengthenOnPublish.type) {
+    return null;
+  }
+  return newTranslation.value._strengthenOnPublish.type;
+};
+
+function findNewTranslation(payload: TranslationMetadata) {
+  if (!payload) {
+    return null;
+  }
+
+  const { before, after } = payload;
+
+  if (!before) {
+    const newTranslation = after.translations[after.translations.length - 1];
+    if (!newTranslation.value) {
+      return null;
+    }
+    newTranslation.value._ref = `drafts.${newTranslation.value._ref}`;
+    return newTranslation;
+  }
+
+  const beforeKeys = new Set(
+    before.translations.map((translation) => translation._key),
+  );
+
+  const newTranslation = after.translations.find(
+    (translation) => !beforeKeys.has(translation._key),
+  );
+
+  if (!newTranslation?.value) {
+    return null;
+  }
+
+  newTranslation.value._ref = `drafts.${newTranslation.value._ref}`;
+
+  return newTranslation;
+}
+
+const findLatestDocumentId = async (
+  data: TranslationApiRequestBody,
+  client: SanityClient,
+) => {
+  if (!data) {
+    return null;
+  }
+  if ('docId' in data && data.docId) {
+    const latestDocumentVersions: DocumentComparisonMetadataArray | null =
+      await loadDocumentVersions(data.docId, client);
+
+    if (!latestDocumentVersions || latestDocumentVersions.length === 0) {
+      return null;
+    }
+
+    // Sort the array based on the _updatedAt field in descending order and pick the first one
+    const latestVersion: DocumentComparisonMetadata =
+      latestDocumentVersions.sort(
+        (a, b) =>
+          new Date(b._updatedAt).getTime() - new Date(a._updatedAt).getTime(),
+      )[0];
+
+    return latestVersion._id;
+  }
+
+  if (!('before' in data && 'after' in data)) {
+    return null;
+  }
+  const newTranslation = findNewTranslation(data);
+  if (!newTranslation?.value?._ref) {
+    return null;
+  }
+
+  return newTranslation.value._ref;
+};
+
 async function translateJSONData(
   jsonData: SanityDocumentLike,
   language: deepl.TargetLanguageCode,
+  deeplApiKey: string,
 ) {
-  const authKey = process.env.DEEPL_API_KEY;
+  const authKey = deeplApiKey;
 
   if (!authKey) {
     throw new Error('No API key found');
@@ -379,29 +370,150 @@ function findAllReferenceObjects(obj: unknown, result: unknown[] = []) {
   return result;
 }
 
-export const fixReference = async (
+const processReferenceObjects = async (
+  referenceObjects: unknown[],
   documentData: SanityDocumentLike,
+  documentLanguage: string,
   client: SanityClient,
 ) => {
-  if (!documentData) {
-    throw new Error('No document data found');
-  }
+  const promises = referenceObjects.map(async (referenceObject: unknown) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      const referenceObjectId: string = (referenceObject as { _ref: string })
+        ._ref;
 
-  const language = documentData.language;
+      const documentTranslations: {
+        originalId: string;
+        newId: string | undefined;
+      } | null = await loadDocumentTranslationsAndReplace(
+        referenceObjectId,
+        documentLanguage,
+        client,
+      );
 
-  if (!language) {
-    throw new Error('No language found');
-  }
+      if (documentTranslations?.newId === undefined) {
+        return;
+      }
+      // eslint-disable-next-line no-unused-expressions
+      [];
 
-  const referenceObjects = findAllReferenceObjects(documentData);
+      replaceRefId(
+        documentData,
+        documentTranslations.originalId,
+        documentTranslations.newId,
+      );
+    } catch (error) {
+      console.error(`Error processing reference object: ${error}`);
+      // Optionally handle errors, e.g., continue processing other items, log errors, etc.
+    }
+  });
 
-  const processedDocumentData = await processReferenceObjects(
-    referenceObjects,
-    documentData,
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    language as string,
-    client,
-  );
+  // No need to get the return value, just process the promises in chunks
+  await processPromisesInChunks(promises, 3);
 
-  return { processedDocumentData };
+  return documentData; // Return the modified documentData
 };
+
+export class TranslationService {
+  private client: SanityClient;
+  private deeplApiKey: string;
+
+  constructor(config: TranslationServiceOptions) {
+    this.client = config.client;
+    this.deeplApiKey = config.deeplApiKey;
+  }
+
+  public async translateDocument({
+    data,
+  }: {
+    data: TranslationApiRequestBody;
+  }) {
+    // find the document ID and document type of the document to be translated, from the object passed from the webhook
+    const docId = await findLatestDocumentId(data, this.client);
+    const type = findDocumentType(data);
+
+    if (!docId || !type) {
+      throw new Error('No document ID or type found');
+    }
+
+    // Load the document data from the server
+    const document = await loadDocumentData(docId, type, this.client);
+    if (!document) {
+      throw new Error('No document data found');
+    }
+
+    // Extract the language from the document data
+    let language = document.language;
+    if (!language) {
+      throw new Error('No language found');
+    }
+
+    // Find all reference objects within the document body
+    const referenceObjects = findAllReferenceObjects(document);
+
+    // Process the reference objects to prepare for translation
+    const processedDocumentData = await processReferenceObjects(
+      referenceObjects,
+      document, // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      language as string,
+      this.client,
+    );
+
+    // Adjust the language code if necessary
+    if (language === 'en') {
+      language = 'en-US';
+    }
+
+    // Translate the processed document data using the DeepL API
+    const { translatedJsonData } = await translateJSONData(
+      processedDocumentData, // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      language as deepl.TargetLanguageCode,
+      this.deeplApiKey,
+    );
+
+    await this.client
+      .patch(translatedJsonData._id)
+      .set({ ...translatedJsonData })
+      .commit();
+
+    return { translatedJsonData };
+  }
+
+  public async fixReference({ data }: { data: TranslationApiRequestBody }) {
+    // find the document ID and document type of the document to be translated, from the object passed from the webhook
+    const docId = await findLatestDocumentId(data, this.client);
+    const type = findDocumentType(data);
+
+    if (!docId || !type) {
+      throw new Error('No document ID or type found');
+    }
+    // Load the document data from the server
+    const document = await loadDocumentData(docId, type, this.client);
+    if (!document) {
+      throw new Error('No document data found');
+    }
+
+    const language = document.language;
+
+    if (!language) {
+      throw new Error('No language found');
+    }
+
+    const referenceObjects = findAllReferenceObjects(document);
+
+    const processedDocumentData = await processReferenceObjects(
+      referenceObjects,
+      document,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      language as string,
+      this.client,
+    );
+
+    await this.client
+      .patch(processedDocumentData._id)
+      .set({ ...processedDocumentData })
+      .commit();
+
+    return { processedDocumentData };
+  }
+}
