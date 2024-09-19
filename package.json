@@ -31,6 +31,12 @@
       "require": "./dist/service.js",
       "default": "./dist/service.js"
     },
+    "./types": {
+      "source": "./src/exports/types/index.ts",
+      "import": "./dist/types.mjs",
+      "require": "./dist/types.js",
+      "default": "./dist/types.js"
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
@@ -50,7 +56,8 @@
     "sanity.json",
     "src",
     "v2-incompatible.js",
-    "service.js"
+    "service.js",
+    "types.js"
   ],
   "scripts": {
     "build": "plugin-kit verify-package --silent && pkg-utils build --strict --check --clean",

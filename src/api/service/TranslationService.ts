@@ -1,16 +1,18 @@
 import * as deepl from 'deepl-node';
 import { SanityClient, SanityDocumentLike } from 'sanity';
 
-import { TranslationServiceOptions } from '../../types/translationApi';
-import { processPromisesInChunks } from '../../utils/promiseUtils';
 import {
   DocumentComparisonMetadata,
   DocumentComparisonMetadataArray,
+  TranslationApiRequestBody,
+  TranslationMetadata,
+  TranslationServiceOptions,
+} from '../../types/translationApi';
+import { processPromisesInChunks } from '../../utils/promiseUtils';
+import {
   loadDocumentData,
   loadDocumentTranslationsAndReplace,
   loadDocumentVersions,
-  TranslationApiRequestBody,
-  TranslationMetadata,
 } from '../queries/documentLoader';
 
 // add here the string type keys that need to be translated
