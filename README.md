@@ -20,9 +20,36 @@ This Sanity plugin leverages the DeepL API to provide translation capabilities w
 
 2. Include the plugin in your Sanity Studio's configuration.
 
+## Configuration
+
+To configure the plugin, you need to specify the DeepL API key and other optional settings in your Sanity Studio configuration file:
+
+```
+   import { TranslationPlugin } from 'sanity-plugin-translate';
+
+   export default createConfig({
+      // Your existing Sanity configuration
+      ...,
+      plugins: [
+         TranslationPlugin({
+            BASE_URL: 'https://api.deepl.com',
+            deeplApiKey: 'your-deepl-api-key'
+         })
+      ]
+   });
+```
+
 ## Usage
 
 After installation, the translation actions can be triggered from the document actions dropdown in the Sanity Studio. Ensure you have the necessary API keys and configurations set up as described in the plugin documentation.
+
+### Translating a Document
+
+You can translate documents by selecting the "Translate Document" action from the document action dropdown. This action uses the DeepL API to translate the text fields of the document to the specified language.
+
+### Fixing References
+
+The "Fix Language References" action helps in adjusting document references to point to the translated versions of linked documents.
 
 ## Develop & Test
 
