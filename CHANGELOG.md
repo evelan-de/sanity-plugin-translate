@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.1.0...v1.2.0) (2024-09-19)
+
+### Features
+
+- add types export and update translation service ([4e5cf39](https://github.com/evelan-de/sanity-plugin-translate/commit/4e5cf39ed07fec361032714b6d75fc36404cbb10))
+
 ## [1.1.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.0.0...v1.1.0) (2024-09-18)
 
 ### Features
