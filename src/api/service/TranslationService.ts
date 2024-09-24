@@ -28,6 +28,7 @@ const translatableFieldKeys = [
   'errorTitle',
   'actionButtonLabel',
   'placeholder',
+  'altText',
   { type: ['form', 'pageCategory', 'category'], key: 'name' },
 ];
 
