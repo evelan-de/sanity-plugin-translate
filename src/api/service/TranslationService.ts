@@ -17,6 +17,7 @@ import {
 
 // add here the string type keys that need to be translated
 const translatableFieldKeys = [
+  'altText',
   'label',
   'text',
   'title',
@@ -28,7 +29,6 @@ const translatableFieldKeys = [
   'errorTitle',
   'actionButtonLabel',
   'placeholder',
-  'altText',
   { type: ['form', 'pageCategory', 'category'], key: 'name' },
 ];
 
