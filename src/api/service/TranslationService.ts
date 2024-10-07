@@ -29,6 +29,10 @@ const translatableFieldKeys = [
   'errorTitle',
   'actionButtonLabel',
   'placeholder',
+  'featHeader',
+  'conHeader',
+  'proHeader',
+  'faqHeader',
   { type: ['form', 'pageCategory', 'category'], key: 'name' },
 ];
 
