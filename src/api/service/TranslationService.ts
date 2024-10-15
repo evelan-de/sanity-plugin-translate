@@ -318,9 +318,13 @@ async function translateJSONData(
 
     const formattedTranslations = translations.map((translation, index) => {
       const originalText = textToTranslate[index].original;
+      const leadingSpace = originalText.startsWith(' ') ? ' ' : '';
+      const trailingSpace = originalText.endsWith(' ') ? ' ' : '';
+      const adjustedTranslation =
+        leadingSpace + translation.text + trailingSpace;
       return originalText === originalText.toUpperCase()
-        ? translation.text.toUpperCase()
-        : translation.text;
+        ? adjustedTranslation.toUpperCase()
+        : adjustedTranslation;
     });
 
     batchedTranslations.push(...formattedTranslations);
