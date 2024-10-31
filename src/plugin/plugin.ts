@@ -11,12 +11,17 @@ import {
 export const TranslationPlugin = definePlugin<void | TranslationPluginOptions>(
   (config) => {
     const BASE_URL = config?.BASE_URL;
+
     return {
       name: `sanity-plugin-translate`,
       document: {
         actions: [
-          (props) => TranslateAction({ ...props, BASE_URL }),
-          (props) => FixReferenceAction({ ...props, BASE_URL }),
+          config?.includeTranslateAction !== false
+            ? (props) => TranslateAction({ ...props, BASE_URL })
+            : undefined,
+          config?.includeFixReferenceAction !== false
+            ? (props) => FixReferenceAction({ ...props, BASE_URL })
+            : undefined,
         ],
       },
       i18n: {
