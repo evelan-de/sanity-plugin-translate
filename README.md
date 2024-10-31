@@ -34,6 +34,8 @@ To configure the plugin, you need to specify the DeepL API key and other optiona
          TranslationPlugin({
             BASE_URL: 'https://api.deepl.com',
             deeplApiKey: 'your-deepl-api-key'
+            includeFixReferenceAction: boolean,
+            includeTranslateAction: boolean,
          })
       ]
    });
