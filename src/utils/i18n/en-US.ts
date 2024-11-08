@@ -20,4 +20,14 @@ export const DEFAULT_EN_SCHEMA_TRANSLATIONS = removeUndefinedLocaleResources({
     'An error occurred while attempting to fix references.',
   'fixReferenceAction.label': 'Fix Language References',
   'fixReferenceAction.label.loading': 'Fixing Language References...',
+
+  // Sync Documents Action translations
+  'syncDocumentsAction.toast.success.title': 'Synchronization Complete',
+  'syncDocumentsAction.toast.success.description':
+    'The translated documents have been successfully synchronized.',
+  'syncDocumentsAction.toast.error.title': 'Synchronization Failed',
+  'syncDocumentsAction.toast.error.description':
+    'An error occurred during the synchronization process.',
+  'syncDocumentsAction.label': 'Synchronize Translated Documents',
+  'syncDocumentsAction.label.loading': 'Synchronizing Translated Documents...',
 });

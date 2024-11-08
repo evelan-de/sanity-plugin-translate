@@ -13,6 +13,7 @@ import {
   loadDocumentData,
   loadDocumentTranslationsAndReplace,
   loadDocumentVersions,
+  loadOtherDocumentVersions,
 } from '../queries/documentLoader';
 
 // add here the string type keys that need to be translated
@@ -211,6 +212,25 @@ function findNewTranslation(payload: TranslationMetadata) {
   return newTranslation;
 }
 
+const getDocumentid = async (data: TranslationApiRequestBody) => {
+  if (!data) {
+    return null;
+  }
+  if ('docId' in data && data.docId) {
+    return data.docId;
+  }
+
+  if (!('before' in data && 'after' in data)) {
+    return null;
+  }
+  const newTranslation = findNewTranslation(data);
+  if (!newTranslation?.value?._ref) {
+    return null;
+  }
+
+  return newTranslation.value._ref;
+};
+
 const findLatestDocumentId = async (
   data: TranslationApiRequestBody,
   client: SanityClient,
@@ -248,7 +268,13 @@ const findLatestDocumentId = async (
 };
 
 async function translateJSONData(
-  jsonData: SanityDocumentLike,
+  jsonData: SanityDocumentLike & {
+    language?: string;
+    _originalId?: string;
+    __i18n_lang?: string;
+    _rev?: string;
+    __i18n_refs?: { _key?: string; _ref?: string; _type?: string }[];
+  },
   language: deepl.TargetLanguageCode,
   deeplApiKey: string,
 ) {
@@ -432,6 +458,90 @@ export class TranslationService {
   constructor(config: TranslationServiceOptions) {
     this.client = config.client;
     this.deeplApiKey = config.deeplApiKey;
+  }
+
+  public async syncDocuments({ data }: { data: TranslationApiRequestBody }) {
+    // find the document ID and document type of the document to be translated, from the object passed from the webhook
+    const docId = await getDocumentid(data);
+    const type = findDocumentType(data);
+
+    if (!docId || !type) {
+      throw new Error('No document ID or type found');
+    }
+
+    // Load the document data from the server
+    const originalDocument = await loadDocumentData(docId, type, this.client);
+    if (!originalDocument) {
+      throw new Error('No document data found');
+    }
+
+    const otherDocumentVersions = await loadOtherDocumentVersions(
+      docId,
+      this.client,
+    );
+
+    if (!otherDocumentVersions) {
+      throw new Error('No other document versions found');
+    }
+
+    // Find all reference objects within the document body
+    const referenceObjects = findAllReferenceObjects(originalDocument);
+
+    // Replace the forEach loop with a for...of loop
+    const updatedDocuments: SanityDocumentLike[] = [];
+
+    for (const doc of otherDocumentVersions) {
+      if (docId === doc._id) {
+        continue;
+      }
+      // Process the reference objects to prepare for translation
+
+      try {
+        // Adjust the language code if necessary
+        let documentLanguage = doc.language;
+
+        const processedDocumentData = await processReferenceObjects(
+          referenceObjects,
+          originalDocument, // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          documentLanguage as string,
+          this.client,
+        );
+
+        if (documentLanguage === 'en') {
+          documentLanguage = 'en-US';
+        }
+
+        const { translatedJsonData } = await translateJSONData(
+          processedDocumentData, // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          documentLanguage as deepl.TargetLanguageCode,
+          this.deeplApiKey,
+        );
+        const {
+          _id,
+          language,
+          _rev,
+          __i18n_lang,
+          __i18n_refs,
+          ...otherFields
+        } = translatedJsonData;
+
+        updatedDocuments.push(translatedJsonData);
+        let id = doc._id;
+
+        if ('_originalId' in doc) {
+          id = doc._originalId as string;
+        }
+
+        await this.client
+          .patch(id)
+          .set({ ...otherFields })
+          .commit();
+      } catch (e) {
+        console.error(`Error translating JSON data: ${e}`);
+      }
+    }
+
+    return { otherDocumentVersions, updatedDocuments };
   }
 
   public async translateDocument({

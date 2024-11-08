@@ -18,7 +18,14 @@ export const translationQuery = `
 *[_id == $id][0] {
   "_translations": *[_type == "translation.metadata" && references(^._id)].translations[].value->{
     _id,
-    language
+    language,
   }
+}
+`;
+
+export const documentVersionsQuery = `*[_type == "translation.metadata" && references($id)].translations[].value->{
+  _id,
+  language,
+  _originalId
 }
 `;

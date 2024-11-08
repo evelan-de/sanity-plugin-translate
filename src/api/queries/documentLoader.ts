@@ -1,9 +1,13 @@
 import { SanityClient, SanityDocumentLike } from 'sanity';
 
-import { DocumentComparisonMetadataArray } from '../../types/translationApi';
+import {
+  DocumentComparisonMetadataArray,
+  DocumentTranslatedMetaData,
+} from '../../types/translationApi';
 import {
   documentComparisonQuery,
   documentQuery,
+  documentVersionsQuery,
   translationQuery,
 } from './documentQueries';
 
@@ -34,6 +38,19 @@ export async function loadDocumentVersions(
     },
   );
   return documentData;
+}
+
+export async function loadOtherDocumentVersions(
+  docId: string,
+  client: SanityClient,
+): Promise<DocumentTranslatedMetaData[] | null> {
+  const query = documentVersionsQuery;
+
+  const documents = await client.fetch<DocumentTranslatedMetaData[]>(query, {
+    id: docId,
+  });
+
+  return documents;
 }
 
 export async function loadDocumentTranslationsAndReplace(

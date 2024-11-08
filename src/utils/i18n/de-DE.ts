@@ -20,4 +20,15 @@ export const DEFAULT_DE_SCHEMA_TRANSLATIONS = removeUndefinedLocaleResources({
     'Beim Versuch, Referenzen zu reparieren, ist ein Fehler aufgetreten.',
   'fixReferenceAction.label': 'Sprachreferenzen korrigieren',
   'fixReferenceAction.label.loading': 'Sprachreferenzen korrigieren...',
+
+  // Sync Documents Action translations
+  'syncDocumentsAction.toast.success.title': 'Synchronisation abgeschlossen',
+  'syncDocumentsAction.toast.success.description':
+    'Die übersetzten Dokumente wurden erfolgreich synchronisiert.',
+  'syncDocumentsAction.toast.error.title': 'Synchronisation fehlgeschlagen',
+  'syncDocumentsAction.toast.error.description':
+    'Beim Versuch, übersetzte Dokumente zu synchronisieren, ist ein Fehler aufgetreten.',
+  'syncDocumentsAction.label': 'Übersetzte Dokumente synchronisieren',
+  'syncDocumentsAction.label.loading':
+    'Übersetzte Dokumente synchronisieren...',
 });

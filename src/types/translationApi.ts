@@ -11,12 +11,22 @@ export const documentComparisonMetadata = z.object({
   _updatedAt: z.string(),
 });
 
+export const documentTranslatedMetaData = z.object({
+  _id: z.string(),
+  language: z.string(),
+  _originalId: z.string().nullable(),
+});
+
 export const documentComparisonMetadataArray = z.array(
   documentComparisonMetadata,
 );
 
 export type DocumentComparisonMetadata = z.infer<
   typeof documentComparisonMetadata
+>;
+
+export type DocumentTranslatedMetaData = z.infer<
+  typeof documentTranslatedMetaData
 >;
 export type DocumentComparisonMetadataArray = z.infer<
   typeof documentComparisonMetadataArray
@@ -84,6 +94,7 @@ export const translationApiRequestBody = z.union([
   z.object({
     docId: z.string().nullable(),
     type: z.string().nullable(),
+    published: z.boolean().nullable().optional(),
   }),
 ]);
 
