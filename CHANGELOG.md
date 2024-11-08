@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.6.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.5.0...v1.6.0) (2024-11-08)
+
+### Features
+
+- add sync documents action to API and plugin ([96d0ae6](https://github.com/evelan-de/sanity-plugin-translate/commit/96d0ae642b36824a69c113d786433992f4bc103d))
+
 ## [1.5.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.4.0...v1.5.0) (2024-10-31)
 
 ### Features
