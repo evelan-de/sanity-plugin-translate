@@ -453,10 +453,12 @@ const processReferenceObjects = async (
 
 export class TranslationService {
   private client: SanityClient;
+  private previewClient?: SanityClient;
   private deeplApiKey: string;
 
   constructor(config: TranslationServiceOptions) {
     this.client = config.client;
+    this.previewClient = config.previewClient;
     this.deeplApiKey = config.deeplApiKey;
   }
 
@@ -531,10 +533,14 @@ export class TranslationService {
         } = translatedJsonData;
 
         updatedDocuments.push(translatedJsonData);
-        let id = doc._id;
+        const id = doc._id;
 
         if ('_originalId' in doc) {
-          id = doc._originalId as string;
+          await this.previewClient
+            ?.patch(doc._originalId as string)
+            .set({ ...otherFields })
+            .commit();
+          continue;
         }
 
         await this.client

@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 export interface TranslationServiceOptions {
   client: SanityClient;
+  previewClient?: SanityClient;
   deeplApiKey: string;
 }
 
