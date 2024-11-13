@@ -540,6 +540,7 @@ export class TranslationService {
             ?.patch(doc._originalId as string)
             .set({ ...otherFields })
             .commit();
+
           continue;
         }
 
