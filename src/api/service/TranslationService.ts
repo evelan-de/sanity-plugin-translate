@@ -522,6 +522,11 @@ export class TranslationService {
           _rev,
           __i18n_lang,
           __i18n_refs,
+          _originalId,
+          _translations,
+          metadata,
+          _createdAt,
+          _updatedAt,
           ...otherFields
         } = translatedJsonData;
 
