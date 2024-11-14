@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.7.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.6.0...v1.7.0) (2024-11-14)
+
+### Features
+
+- adds support for unpublished documents ([675ca21](https://github.com/evelan-de/sanity-plugin-translate/commit/675ca218cf390be5420d9a1bd2ac0a293a187cb4))
+
 ## [1.6.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.5.0...v1.6.0) (2024-11-08)
 
 ### Features
