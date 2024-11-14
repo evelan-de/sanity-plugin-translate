@@ -212,25 +212,6 @@ function findNewTranslation(payload: TranslationMetadata) {
   return newTranslation;
 }
 
-const getDocumentid = async (data: TranslationApiRequestBody) => {
-  if (!data) {
-    return null;
-  }
-  if ('docId' in data && data.docId) {
-    return data.docId;
-  }
-
-  if (!('before' in data && 'after' in data)) {
-    return null;
-  }
-  const newTranslation = findNewTranslation(data);
-  if (!newTranslation?.value?._ref) {
-    return null;
-  }
-
-  return newTranslation.value._ref;
-};
-
 const findLatestDocumentId = async (
   data: TranslationApiRequestBody,
   client: SanityClient,
@@ -464,8 +445,11 @@ export class TranslationService {
 
   public async syncDocuments({ data }: { data: TranslationApiRequestBody }) {
     // find the document ID and document type of the document to be translated, from the object passed from the webhook
-    const docId = await getDocumentid(data);
+    const docId = await findLatestDocumentId(data, this.client);
     const type = findDocumentType(data);
+    if (!this.previewClient) {
+      throw new Error('No preview client found');
+    }
 
     if (!docId || !type) {
       throw new Error('No document ID or type found');
@@ -478,8 +462,8 @@ export class TranslationService {
     }
 
     const otherDocumentVersions = await loadOtherDocumentVersions(
-      docId,
-      this.client,
+      docId.replace(/^drafts\./, ''),
+      this.previewClient,
     );
 
     if (!otherDocumentVersions) {
@@ -493,6 +477,10 @@ export class TranslationService {
     const updatedDocuments: SanityDocumentLike[] = [];
 
     for (const doc of otherDocumentVersions) {
+      if (!doc || typeof doc !== 'object' || !doc._id) {
+        console.error('Invalid document encountered:', otherDocumentVersions);
+        continue; // Skip this iteration if the document is invalid
+      }
       if (docId === doc._id) {
         continue;
       }
@@ -532,11 +520,11 @@ export class TranslationService {
           ...otherFields
         } = translatedJsonData;
 
-        updatedDocuments.push(translatedJsonData);
+        updatedDocuments.push({ ...otherFields, _id: doc._id });
         const id = doc._id;
 
         if ('_originalId' in doc) {
-          await this.previewClient
+          await this.client
             ?.patch(doc._originalId as string)
             .set({ ...otherFields })
             .commit();

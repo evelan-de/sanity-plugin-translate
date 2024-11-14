@@ -28,8 +28,11 @@ const SyncDocumentsAction = ({
   });
 
   const docId = useMemo(() => {
+    if (!published) {
+      return `drafts.${id}`;
+    }
     return id;
-  }, [id]);
+  }, [id, published]);
 
   const toast = useToast();
 
