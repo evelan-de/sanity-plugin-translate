@@ -5,6 +5,14 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.8.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.7.1...v1.8.0) (2024-11-25)
+
+### Features
+
+- add support for syncing translated document media ([fe41ef8](https://github.com/evelan-de/sanity-plugin-translate/commit/fe41ef8720b403d5ff3ce56ac1ef5fb72aa2f336))
+- add translations for syncing translated document media ([dc6c6a6](https://github.com/evelan-de/sanity-plugin-translate/commit/dc6c6a6260ab9327e9d154bc280a1ba36a998ff1))
+- update package-lock.json and package.json ([849fcfc](https://github.com/evelan-de/sanity-plugin-translate/commit/849fcfc4a70ef7ffd3975e15e411929749bcb224))
+
 ## [1.7.1](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.7.0...v1.7.1) (2024-11-14)
 
 ### Bug Fixes
