@@ -31,4 +31,18 @@ export const DEFAULT_DE_SCHEMA_TRANSLATIONS = removeUndefinedLocaleResources({
   'syncDocumentsAction.label': 'Übersetzte Dokumente synchronisieren',
   'syncDocumentsAction.label.loading':
     'Übersetzte Dokumente synchronisieren...',
+
+  // Sync Documents Media Action translations
+  'syncDocumentsMediaAction.toast.success.title':
+    'Synchronisierung abgeschlossen',
+  'syncDocumentsMediaAction.toast.success.description':
+    'Die Medien der übersetzten Dokumente wurden erfolgreich synchronisiert.',
+  'syncDocumentsMediaAction.toast.error.title':
+    'Synchronisierung fehlgeschlagen',
+  'syncDocumentsMediaAction.toast.error.description':
+    'Während des Synchronisierungsvorgangs ist ein Fehler aufgetreten.',
+  'syncDocumentsMediaAction.label':
+    'Synchronisieren übersetzter Dokumente Medien',
+  'syncDocumentsMediaAction.label.loading':
+    'Synchronisierung übersetzter Dokumente Medien...',
 });
