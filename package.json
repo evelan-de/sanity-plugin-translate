@@ -71,7 +71,8 @@
   "dependencies": {
     "@sanity/incompatible-plugin": "1.0.4",
     "@sanity/ui": "2.8.8",
-    "deepl-node": "1.13.0"
+    "deepl-node": "1.13.0",
+    "sanity-plugin-translate": "file:.yalc/sanity-plugin-translate"
   },
   "devDependencies": {
     "@commitlint/cli": "19.4.0",

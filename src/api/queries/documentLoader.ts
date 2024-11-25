@@ -7,6 +7,7 @@ import {
 import {
   documentComparisonQuery,
   documentQuery,
+  documentVersionsFullQuery,
   documentVersionsQuery,
   translationQuery,
 } from './documentQueries';
@@ -53,6 +54,18 @@ export async function loadOtherDocumentVersions(
   return documents;
 }
 
+export async function loadOtherDocumentVersionsFull(
+  docId: string,
+  client: SanityClient,
+): Promise<SanityDocumentLike[] | null> {
+  const query = documentVersionsFullQuery;
+
+  const documents = await client.fetch<SanityDocumentLike[]>(query, {
+    id: docId,
+  });
+
+  return documents;
+}
 export async function loadDocumentTranslationsAndReplace(
   docId: string,
   language: string,

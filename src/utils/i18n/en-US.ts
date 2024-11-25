@@ -30,4 +30,15 @@ export const DEFAULT_EN_SCHEMA_TRANSLATIONS = removeUndefinedLocaleResources({
     'An error occurred during the synchronization process.',
   'syncDocumentsAction.label': 'Synchronize Translated Documents',
   'syncDocumentsAction.label.loading': 'Synchronizing Translated Documents...',
+
+  // Sync Documents Media Action translations
+  'syncDocumentsMediaAction.toast.success.title': 'Synchronization Complete',
+  'syncDocumentsMediaAction.toast.success.description':
+    'The translated documents media have been successfully synchronized.',
+  'syncDocumentsMediaAction.toast.error.title': 'Synchronization Failed',
+  'syncDocumentsMediaAction.toast.error.description':
+    'An error occurred during the synchronization process.',
+  'syncDocumentsMediaAction.label': 'Synchronize Translated Documents Media',
+  'syncDocumentsMediaAction.label.loading':
+    'Synchronizing Translated Documents Media...',
 });

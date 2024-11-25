@@ -1,6 +1,7 @@
 import { definePlugin } from 'sanity';
 
 import FixReferenceAction from '../components/documentActions/FixReferenceAction';
+import SyncDocumentMediaAction from '../components/documentActions/syncDocumentMediaAction';
 import SyncDocumentsAction from '../components/documentActions/SyncDocumentsAction';
 import TranslateAction from '../components/documentActions/TranslateAction'; // Updated casing
 import { TranslationPluginOptions } from '../types/TranslationPluginOptions';
@@ -25,6 +26,9 @@ export const TranslationPlugin = definePlugin<void | TranslationPluginOptions>(
             : undefined,
           config?.includeSyncDocumentsAction !== false
             ? (props) => SyncDocumentsAction({ ...props, BASE_URL })
+            : undefined,
+          config?.includeSyncDocumentMediaAction !== false
+            ? (props) => SyncDocumentMediaAction({ ...props, BASE_URL })
             : undefined,
         ],
       },

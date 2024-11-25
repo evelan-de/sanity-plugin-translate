@@ -29,3 +29,9 @@ export const documentVersionsQuery = `*[_type == "translation.metadata" && refer
   _originalId
 }
 `;
+
+export const documentVersionsFullQuery = `*[_type == "translation.metadata" && references($id)].translations[].value->{
+  _id,
+  ...,
+}
+`;

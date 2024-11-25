@@ -14,6 +14,7 @@ import {
   loadDocumentTranslationsAndReplace,
   loadDocumentVersions,
   loadOtherDocumentVersions,
+  loadOtherDocumentVersionsFull,
 } from '../queries/documentLoader';
 
 // add here the string type keys that need to be translated
@@ -37,6 +38,13 @@ const translatableFieldKeys = [
   { type: ['form', 'pageCategory', 'category'], key: 'name' },
 ];
 
+const mediaObjects = [
+  'media',
+  'icon',
+  'mainImage',
+  'sanityIcon',
+  'productImage',
+];
 // add here the array type keys that need to be translated
 const translatableArrayFieldKeys = ['keywords'];
 
@@ -432,6 +440,154 @@ const processReferenceObjects = async (
   return documentData; // Return the modified documentData
 };
 
+const mapFieldsToCopy = (
+  data: unknown,
+  parentId: string | undefined,
+  xPath: string | null,
+): {
+  mediaObjectsToCopy: {
+    key: string;
+    value: unknown;
+    parentId: string | undefined;
+    xPath: string | null;
+  }[];
+} => {
+  const mediaObjectsToCopy: {
+    key: string;
+    value: unknown;
+    parentId: string | undefined;
+    xPath: string | null;
+  }[] = [];
+
+  // Check if data is an object and not null
+  if (!(typeof data === 'object' && data !== null)) {
+    return { mediaObjectsToCopy };
+  }
+
+  // Iterate over each entry in the data object
+  Object.entries(data as Record<string, unknown>).forEach(([key, value]) => {
+    // Construct the XPath for the current node
+    const currentXPath = xPath ? `${xPath}/${key}` : key;
+
+    // Handle media objects
+    if (mediaObjects.includes(key) && typeof value === 'object') {
+      mediaObjectsToCopy.push({ key, value, parentId, xPath: currentXPath });
+      return;
+    }
+    // Recursively handle objects to find nested media objects
+    if (typeof value === 'object') {
+      const currentParentId = (value as any)._key || undefined; // Use _key if available, otherwise fallback to parentId
+      const { mediaObjectsToCopy: nestedMediaObjectsToCopy } = mapFieldsToCopy(
+        value,
+        currentParentId,
+        currentXPath,
+      );
+      mediaObjectsToCopy.push(...nestedMediaObjectsToCopy);
+    }
+  });
+
+  return { mediaObjectsToCopy };
+};
+
+interface MediaObject {
+  key: string;
+  value: unknown;
+  parentId: string | undefined;
+  xPath: string | null;
+}
+
+/**
+ * Replaces media objects in the target document based on matching parentId and xPath.
+ *
+ * @param mediaObjectsToCopy Array of media objects to be copied.
+ * @param targetDocument The document in which media objects will be replaced.
+ * @returns The updated target document with replaced media objects.
+ */
+// Start of Selection
+function replaceMatchingMediaObjects(
+  mediaObjectsToCopy: MediaObject[],
+  targetDocument: SanityDocumentLike,
+): SanityDocumentLike {
+  // Create a deep copy of the targetDocument to avoid mutating the original
+  const targetDocumentCopy = JSON.parse(JSON.stringify(targetDocument));
+
+  if (typeof targetDocumentCopy !== 'object' || targetDocumentCopy === null) {
+    // console.warn('Target document is not a valid object.');
+    return targetDocumentCopy;
+  }
+
+  mediaObjectsToCopy.forEach((mediaObj) => {
+    const xpathValue = mediaObj.xPath;
+    if (!xpathValue) {
+      return;
+    }
+    const pathSegments = xpathValue
+      .split('/')
+      .filter((segment) => segment !== '');
+
+    if (pathSegments.length === 0) {
+      // console.warn(`Invalid xPath: ${mediaObj.xPath}`);
+      return;
+    }
+
+    const mediaField = pathSegments.pop();
+    if (!mediaField) {
+      // console.warn(`xPath does not contain a media field: ${mediaObj.xPath}`);
+      return;
+    }
+
+    let current: any = targetDocumentCopy;
+
+    for (const segment of pathSegments) {
+      if (current === undefined || current === null) {
+        // console.warn(`Path segment "${segment}" does not exist.`);
+        return;
+      }
+
+      // Check if the segment is an array index
+      const arrayMatch = segment.match(/^(\w+)\[(\d+)\]$/);
+      if (arrayMatch) {
+        const arrayKey = arrayMatch[1];
+        const index = parseInt(arrayMatch[2], 10);
+
+        if (!Array.isArray(current[arrayKey])) {
+          // console.warn(`Expected "${arrayKey}" to be an array.`);
+          return;
+        }
+
+        current = current[arrayKey][index];
+      } else {
+        current = current[segment];
+      }
+    }
+
+    if (current && typeof current === 'object') {
+      if (current._key === mediaObj.parentId) {
+        if (mediaField in current) {
+          // console.log(
+          //   `Replacing media at path "${mediaObj.xPath}" with new media.`,
+          // );
+          current[mediaField] = mediaObj.value;
+        } else {
+          // console.warn(
+          //   `Media field "${mediaField}" does not exist in the target document.`,
+          // );
+        }
+      } else {
+        // console.warn(
+        //   `Parent ID mismatch. Expected "${mediaObj.parentId}", found "${current._key}".`,
+        // );
+      }
+    } else {
+      // console.warn(
+      //   `Unable to locate parent object for xPath "${mediaObj.xPath}".`,
+      // );
+    }
+  });
+
+  return targetDocumentCopy;
+}
+
 export class TranslationService {
   private client: SanityClient;
   private previewClient?: SanityClient;
@@ -441,6 +597,98 @@ export class TranslationService {
     this.client = config.client;
     this.previewClient = config.previewClient;
     this.deeplApiKey = config.deeplApiKey;
+  }
+
+  public async syncDocumentMedia({
+    data,
+  }: {
+    data: TranslationApiRequestBody;
+  }) {
+    // find the document ID and document type of the document to be translated, from the object passed from the webhook
+    const docId = await findLatestDocumentId(data, this.client);
+    const type = findDocumentType(data);
+    if (!this.previewClient) {
+      throw new Error('No preview client found');
+    }
+
+    if (!docId || !type) {
+      throw new Error('No document ID or type found');
+    }
+
+    // Load the document data from the server
+    const originalDocument = await loadDocumentData(docId, type, this.client);
+    if (!originalDocument) {
+      throw new Error('No document data found');
+    }
+
+    const otherDocumentVersions = await loadOtherDocumentVersionsFull(
+      docId.replace(/^drafts\./, ''),
+      this.previewClient,
+    );
+
+    if (!otherDocumentVersions) {
+      throw new Error('No other document versions found');
+    }
+
+    // Find all reference objects within the document body
+    const { mediaObjectsToCopy } = mapFieldsToCopy(
+      originalDocument,
+      undefined,
+      null,
+    );
+
+    // Replace the forEach loop with a for...of loop
+    const updatedDocuments: SanityDocumentLike[] = [];
+
+    for (const doc of otherDocumentVersions) {
+      if (!doc || typeof doc !== 'object' || !doc._id) {
+        console.error('Invalid document encountered:', otherDocumentVersions);
+        continue; // Skip this iteration if the document is invalid
+      }
+      if (docId === doc._id) {
+        continue;
+      }
+      // Process the reference objects to prepare for translation
+      const updatedDocument = replaceMatchingMediaObjects(
+        mediaObjectsToCopy,
+        doc,
+      );
+      updatedDocuments.push(updatedDocument as SanityDocumentLike);
+
+      const {
+        _id,
+        language,
+        _rev,
+        __i18n_lang,
+        __i18n_refs,
+        _originalId,
+        _translations,
+        metadata,
+        _createdAt,
+        _updatedAt,
+        ...otherFields
+      } = updatedDocument;
+
+      if ('_originalId' in doc) {
+        await this.client
+          ?.patch(doc._originalId as string)
+          .set({ ...otherFields })
+          .commit();
+
+        continue;
+      }
+
+      await this.client
+        .patch(doc._id)
+        .set({ ...otherFields })
+        .commit();
+    }
+
+    return {
+      mediaObjectsToCopy,
+      originalOtherDocumentVersions: otherDocumentVersions,
+      updatedDocuments,
+    };
   }
 
   public async syncDocuments({ data }: { data: TranslationApiRequestBody }) {
