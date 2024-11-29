@@ -5,6 +5,14 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.1](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.9.0...v1.9.1) (2024-11-29)
+
+### Bug Fixes
+
+- create a deep copy of the original document to prevent mutations on the loop ([f7def60](https://github.com/evelan-de/sanity-plugin-translate/commit/f7def601296674e8cc2785ebabb6dd07b3d1d1d0))
+- improve media object replacement logic in translation service ([332bf19](https://github.com/evelan-de/sanity-plugin-translate/commit/332bf194239a45ccf248dbc9c9798da1862968aa))
+- update translations for syncing translated document media ([f99dd06](https://github.com/evelan-de/sanity-plugin-translate/commit/f99dd068316fb265da84797be8e253547482cffe))
+
 ## [1.9.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.8.0...v1.9.0) (2024-11-29)
 
 ### Features
