@@ -28,8 +28,9 @@ export const DEFAULT_EN_SCHEMA_TRANSLATIONS = removeUndefinedLocaleResources({
   'syncDocumentsAction.toast.error.title': 'Synchronization Failed',
   'syncDocumentsAction.toast.error.description':
     'An error occurred during the synchronization process.',
-  'syncDocumentsAction.label': 'Synchronize Translated Documents',
-  'syncDocumentsAction.label.loading': 'Synchronizing Translated Documents...',
+  'syncDocumentsAction.label': 'Synchronize content into other languages',
+  'syncDocumentsAction.label.loading':
+    'Synchronizing content into Translated Documents...',
 
   // Sync Documents Media Action translations
   'syncDocumentsMediaAction.toast.success.title': 'Synchronization Complete',
@@ -38,7 +39,7 @@ export const DEFAULT_EN_SCHEMA_TRANSLATIONS = removeUndefinedLocaleResources({
   'syncDocumentsMediaAction.toast.error.title': 'Synchronization Failed',
   'syncDocumentsMediaAction.toast.error.description':
     'An error occurred during the synchronization process.',
-  'syncDocumentsMediaAction.label': 'Synchronize Media to Translated Documents',
+  'syncDocumentsMediaAction.label': 'Synchronize media into other languages',
   'syncDocumentsMediaAction.label.loading':
     'Synchronizing Media to Translated Documents...',
 });

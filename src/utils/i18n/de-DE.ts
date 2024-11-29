@@ -28,9 +28,9 @@ export const DEFAULT_DE_SCHEMA_TRANSLATIONS = removeUndefinedLocaleResources({
   'syncDocumentsAction.toast.error.title': 'Synchronisation fehlgeschlagen',
   'syncDocumentsAction.toast.error.description':
     'Beim Versuch, übersetzte Dokumente zu synchronisieren, ist ein Fehler aufgetreten.',
-  'syncDocumentsAction.label': 'Übersetzte Dokumente synchronisieren',
+  'syncDocumentsAction.label': 'Inhalte in andere Sprachen synchronisieren',
   'syncDocumentsAction.label.loading':
-    'Übersetzte Dokumente synchronisieren...',
+    'Synchronisierung von Inhalten in übersetzten Dokumenten...',
 
   // Sync Documents Media Action translations
   'syncDocumentsMediaAction.toast.success.title':
@@ -41,8 +41,7 @@ export const DEFAULT_DE_SCHEMA_TRANSLATIONS = removeUndefinedLocaleResources({
     'Synchronisierung fehlgeschlagen',
   'syncDocumentsMediaAction.toast.error.description':
     'Während des Synchronisierungsvorgangs ist ein Fehler aufgetreten.',
-  'syncDocumentsMediaAction.label':
-    'Medien mit übersetzten Dokumenten synchronisieren',
+  'syncDocumentsMediaAction.label': 'Medien in andere Sprachen synchronizieren',
   'syncDocumentsMediaAction.label.loading':
-    'Medien mit übersetzten Dokumenten synchronisieren...',
+    'Medien in andere Sprachen synchronizieren...',
 });
