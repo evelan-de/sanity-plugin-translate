@@ -34,11 +34,11 @@ export const DEFAULT_EN_SCHEMA_TRANSLATIONS = removeUndefinedLocaleResources({
   // Sync Documents Media Action translations
   'syncDocumentsMediaAction.toast.success.title': 'Synchronization Complete',
   'syncDocumentsMediaAction.toast.success.description':
-    'The translated documents media have been successfully synchronized.',
+    'The media have been successfully synchronized to the translated documents.',
   'syncDocumentsMediaAction.toast.error.title': 'Synchronization Failed',
   'syncDocumentsMediaAction.toast.error.description':
     'An error occurred during the synchronization process.',
-  'syncDocumentsMediaAction.label': 'Synchronize Translated Documents Media',
+  'syncDocumentsMediaAction.label': 'Synchronize Media to Translated Documents',
   'syncDocumentsMediaAction.label.loading':
-    'Synchronizing Translated Documents Media...',
+    'Synchronizing Media to Translated Documents...',
 });

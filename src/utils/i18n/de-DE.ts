@@ -36,13 +36,13 @@ export const DEFAULT_DE_SCHEMA_TRANSLATIONS = removeUndefinedLocaleResources({
   'syncDocumentsMediaAction.toast.success.title':
     'Synchronisierung abgeschlossen',
   'syncDocumentsMediaAction.toast.success.description':
-    'Die Medien der übersetzten Dokumente wurden erfolgreich synchronisiert.',
+    'Die Medien wurden erfolgreich mit den übersetzten Dokumenten synchronisiert.',
   'syncDocumentsMediaAction.toast.error.title':
     'Synchronisierung fehlgeschlagen',
   'syncDocumentsMediaAction.toast.error.description':
     'Während des Synchronisierungsvorgangs ist ein Fehler aufgetreten.',
   'syncDocumentsMediaAction.label':
-    'Synchronisieren übersetzter Dokumente Medien',
+    'Medien mit übersetzten Dokumenten synchronisieren',
   'syncDocumentsMediaAction.label.loading':
-    'Synchronisierung übersetzter Dokumente Medien...',
+    'Medien mit übersetzten Dokumenten synchronisieren...',
 });
