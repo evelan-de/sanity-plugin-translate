@@ -710,7 +710,7 @@ export class TranslationService {
     const updatedDocuments: SanityDocumentLike[] = [];
 
     for (const doc of otherDocumentVersions) {
-      const orignalDocumentCopy = { ...originalDocument };
+      const originalDocumentCopy = JSON.parse(JSON.stringify(originalDocument));
 
       if (!doc || typeof doc !== 'object' || !doc._id) {
         console.error('Invalid document encountered:', otherDocumentVersions);
@@ -727,7 +727,7 @@ export class TranslationService {
 
         const processedDocumentData = await processReferenceObjects(
           referenceObjects,
-          orignalDocumentCopy, // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          originalDocumentCopy, // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
           documentLanguage as string,
           this.client,
         );
