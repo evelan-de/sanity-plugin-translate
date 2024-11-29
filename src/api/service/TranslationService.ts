@@ -268,7 +268,6 @@ async function translateJSONData(
   deeplApiKey: string,
 ) {
   const authKey = deeplApiKey;
-
   if (!authKey) {
     throw new Error('No API key found');
   }
@@ -498,12 +497,17 @@ interface MediaObject {
 
 /**
  * Replaces media objects in the target document based on matching parentId and xPath.
+ * This function traverses the target document using the xPath provided for each media object
+ * and replaces the media field with the new value if the parentId matches.
  *
- * @param mediaObjectsToCopy Array of media objects to be copied.
- * @param targetDocument The document in which media objects will be replaced.
+ * @param mediaObjectsToCopy - Array of media objects to be copied. Each object contains:
+ *   - key: The key of the media object.
+ *   - value: The new value to replace the existing media object.
+ *   - parentId: The ID of the parent object to match.
+ *   - xPath: The path to the media object within the document.
+ * @param targetDocument - The document in which media objects will be replaced.
  * @returns The updated target document with replaced media objects.
  */
-// Start of Selection
 function replaceMatchingMediaObjects(
   mediaObjectsToCopy: MediaObject[],
   targetDocument: SanityDocumentLike,
@@ -512,36 +516,33 @@ function replaceMatchingMediaObjects(
   const targetDocumentCopy = JSON.parse(JSON.stringify(targetDocument));
 
   if (typeof targetDocumentCopy !== 'object' || targetDocumentCopy === null) {
-    // console.warn('Target document is not a valid object.');
+    // Return the document as is if it's not a valid object
     return targetDocumentCopy;
   }
 
   mediaObjectsToCopy.forEach((mediaObj) => {
     const xpathValue = mediaObj.xPath;
     if (!xpathValue) {
-      return;
+      return; // Skip if xPath is not provided
     }
     const pathSegments = xpathValue
       .split('/')
       .filter((segment) => segment !== '');
 
     if (pathSegments.length === 0) {
-      // console.warn(`Invalid xPath: ${mediaObj.xPath}`);
-      return;
+      return; // Skip if xPath is invalid
     }
 
     const mediaField = pathSegments.pop();
     if (!mediaField) {
-      // console.warn(`xPath does not contain a media field: ${mediaObj.xPath}`);
-      return;
+      return; // Skip if xPath does not contain a media field
     }
 
     let current: any = targetDocumentCopy;
 
     for (const segment of pathSegments) {
       if (current === undefined || current === null) {
-        // console.warn(`Path segment "${segment}" does not exist.`);
-        return;
+        return; // Skip if path segment does not exist
       }
 
       // Check if the segment is an array index
@@ -551,8 +552,7 @@ function replaceMatchingMediaObjects(
         const index = parseInt(arrayMatch[2], 10);
 
         if (!Array.isArray(current[arrayKey])) {
-          // console.warn(`Expected "${arrayKey}" to be an array.`);
-          return;
+          return; // Skip if expected array is not found
         }
 
         current = current[arrayKey][index];
@@ -564,24 +564,9 @@ function replaceMatchingMediaObjects(
     if (current && typeof current === 'object') {
       if (current._key === mediaObj.parentId) {
         if (mediaField in current) {
-          // console.log(
-          //   `Replacing media at path "${mediaObj.xPath}" with new media.`,
-          // );
-          current[mediaField] = mediaObj.value;
-        } else {
-          // console.warn(
-          //   `Media field "${mediaField}" does not exist in the target document.`,
-          // );
+          current[mediaField] = mediaObj.value; // Replace media field with new value
         }
-      } else {
-        // console.warn(
-        //   `Parent ID mismatch. Expected "${mediaObj.parentId}", found "${current._key}".`,
-        // );
       }
-    } else {
-      // console.warn(
-      //   `Unable to locate parent object for xPath "${mediaObj.xPath}".`,
-      // );
     }
   });
 
@@ -725,6 +710,8 @@ export class TranslationService {
     const updatedDocuments: SanityDocumentLike[] = [];
 
     for (const doc of otherDocumentVersions) {
+      const orignalDocumentCopy = { ...originalDocument };
+
       if (!doc || typeof doc !== 'object' || !doc._id) {
         console.error('Invalid document encountered:', otherDocumentVersions);
         continue; // Skip this iteration if the document is invalid
@@ -740,7 +727,7 @@ export class TranslationService {
 
         const processedDocumentData = await processReferenceObjects(
           referenceObjects,
-          originalDocument, // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          orignalDocumentCopy, // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
           documentLanguage as string,
           this.client,
         );
