@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.2](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.9.1...v1.9.2) (2024-12-06)
+
+### Bug Fixes
+
+- handle missing document id, type, data, and language gracefully in translation service ([23c3df0](https://github.com/evelan-de/sanity-plugin-translate/commit/23c3df0f00f1ac62513754d22f30cf8f74d5aae3))
+
 ## [1.9.1](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.9.0...v1.9.1) (2024-11-29)
 
 ### Bug Fixes
