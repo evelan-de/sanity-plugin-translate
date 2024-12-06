@@ -789,19 +789,19 @@ export class TranslationService {
     const type = findDocumentType(data);
 
     if (!docId || !type) {
-      throw new Error('No document ID or type found');
+      return { isTranslated: false, message: 'No document ID or type found' };
     }
 
     // Load the document data from the server
     const document = await loadDocumentData(docId, type, this.client);
     if (!document) {
-      throw new Error('No document data found');
+      return { isTranslated: false, message: 'No document data found' };
     }
 
     // Extract the language from the document data
     let language = document.language;
     if (!language) {
-      throw new Error('No language found');
+      return { isTranslated: false, message: 'No language found' };
     }
 
     // Find all reference objects within the document body
@@ -832,7 +832,7 @@ export class TranslationService {
       .set({ ...translatedJsonData })
       .commit();
 
-    return { translatedJsonData };
+    return { isTranslated: true, translatedJsonData };
   }
 
   public async fixReference({ data }: { data: TranslationApiRequestBody }) {
