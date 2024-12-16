@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.3](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.9.2...v1.9.3) (2024-12-16)
+
+### Bug Fixes
+
+- make \_strengthenonpublish and \_weak properties optional and nullable in translation api types ([f6d3292](https://github.com/evelan-de/sanity-plugin-translate/commit/f6d32929eec634d30848172682122b9dd5f495eb))
+
 ## [1.9.2](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.9.1...v1.9.2) (2024-12-06)
 
 ### Bug Fixes
