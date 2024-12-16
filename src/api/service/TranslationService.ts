@@ -181,7 +181,7 @@ export const findDocumentType = (data: TranslationApiRequestBody) => {
     return null;
   }
   const newTranslation = findNewTranslation(data);
-  if (!newTranslation?.value?._strengthenOnPublish.type) {
+  if (!newTranslation?.value?._strengthenOnPublish?.type) {
     return null;
   }
   return newTranslation.value._strengthenOnPublish.type;

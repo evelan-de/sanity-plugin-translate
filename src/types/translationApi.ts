@@ -50,11 +50,14 @@ export const translationMetadata = z
             value: z
               .object({
                 _ref: z.string(),
-                _strengthenOnPublish: z.object({
-                  type: z.string(),
-                }),
+                _strengthenOnPublish: z
+                  .object({
+                    type: z.string(),
+                  })
+                  .optional()
+                  .nullable(),
                 _type: z.string(),
-                _weak: z.boolean(),
+                _weak: z.boolean().optional().nullable(),
               })
               .optional()
               .nullable(),
@@ -76,11 +79,14 @@ export const translationMetadata = z
           value: z
             .object({
               _ref: z.string(),
-              _strengthenOnPublish: z.object({
-                type: z.string(),
-              }),
+              _strengthenOnPublish: z
+                .object({
+                  type: z.string(),
+                })
+                .optional()
+                .nullable(),
               _type: z.string(),
-              _weak: z.boolean(),
+              _weak: z.boolean().optional().nullable(),
             })
             .optional()
             .nullable(),
