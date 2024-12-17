@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.10.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.9.3...v1.10.0) (2024-12-17)
+
+### Features
+
+- add 'isrequirederrormessage' to translatable field keys in translation service ([46fabe4](https://github.com/evelan-de/sanity-plugin-translate/commit/46fabe45185fcbe07873380b39a79403a0faae4d))
+
 ## [1.9.3](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.9.2...v1.9.3) (2024-12-16)
 
 ### Bug Fixes
