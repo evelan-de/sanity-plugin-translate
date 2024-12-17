@@ -28,6 +28,7 @@ const translatableFieldKeys = [
   'subline',
   'caption',
   'emailSubject',
+  'isRequiredErrorMessage',
   'errorTitle',
   'actionButtonLabel',
   'placeholder',
