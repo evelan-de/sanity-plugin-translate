@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.10.2](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.10.1...v1.10.2) (2025-06-17)
+
+### Bug Fixes
+
+- zod restrictive version ([3c292e5](https://github.com/evelan-de/sanity-plugin-translate/commit/3c292e574dc9db09b21696aca39475d80de680bf))
+
 ## [1.10.1](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.10.0...v1.10.1) (2025-06-17)
 
 ### Bug Fixes
