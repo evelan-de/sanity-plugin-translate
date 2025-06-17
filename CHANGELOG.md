@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.10.1](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.10.0...v1.10.1) (2025-06-17)
+
+### Bug Fixes
+
+- added react 19 as peerDependency ([15707ca](https://github.com/evelan-de/sanity-plugin-translate/commit/15707ca0a92a5b961e758ce27fbb3f1051243f90))
+
 ## [1.10.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.9.3...v1.10.0) (2024-12-17)
 
 ### Features
