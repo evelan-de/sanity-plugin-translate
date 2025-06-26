@@ -36,6 +36,7 @@ const translatableFieldKeys = [
   'conHeader',
   'proHeader',
   'faqHeader',
+  'teaser',
   { type: ['form', 'pageCategory', 'category'], key: 'name' },
 ];
 
