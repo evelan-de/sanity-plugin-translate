@@ -5,6 +5,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.10.2...v1.11.0) (2025-06-27)
+
+### Features
+
+- add support for translating block content ([33b3a9c](https://github.com/evelan-de/sanity-plugin-translate/commit/33b3a9c244add2a61f264f09ea087d10f4241253))
+- add teaser field to translatable fields in translation service ([e521b81](https://github.com/evelan-de/sanity-plugin-translate/commit/e521b811882fec9e63dacf71cc8c1e22a4c181b7))
+
 ## [1.10.2](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.10.1...v1.10.2) (2025-06-17)
 
 ### Bug Fixes
