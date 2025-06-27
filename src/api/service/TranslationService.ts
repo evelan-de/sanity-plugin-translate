@@ -1,3 +1,4 @@
+import { uuid } from '@sanity/uuid';
 import * as deepl from 'deepl-node';
 import { SanityClient, SanityDocumentLike } from 'sanity';
 
@@ -21,7 +22,7 @@ import {
 const translatableFieldKeys = [
   'altText',
   'label',
-  'text',
+  'text', // Usually this is the field name that comes from the Block Content structure that is part from "children"
   'title',
   'seoTitle',
   'description',
@@ -36,6 +37,8 @@ const translatableFieldKeys = [
   'conHeader',
   'proHeader',
   'faqHeader',
+  'teaser',
+  'supportingText', // For the Testimonial stats (in Multi-card layout)
   { type: ['form', 'pageCategory', 'category'], key: 'name' },
 ];
 
@@ -48,6 +51,58 @@ const mediaObjects = [
 ];
 // add here the array type keys that need to be translated
 const translatableArrayFieldKeys = ['keywords'];
+
+// Constants for Sanity block types
+const BLOCK_CONTENT_TYPE = 'block';
+const SPAN_TYPE = 'span';
+
+// Map to store block content mappings between UUID and original block location
+const blockContentMap: Map<string, { fieldName: string; blockIndex: number }> =
+  new Map();
+
+/**
+ * Applies a translation to a block's spans
+ * @param textSpans Array of span objects with text property
+ * @param translation The translated text to apply
+ */
+const applyTranslationToSpans = (
+  textSpans: any[],
+  translation: string,
+): void => {
+  if (textSpans.length === 1) {
+    // If there's only one span, replace its text directly and preserve marks
+    textSpans[0].text = translation;
+    // No need to modify marks for single spans
+  } else if (textSpans.length > 1) {
+    // If there are multiple spans, put all text in the first span, empty the others, and remove all marks
+    textSpans[0].text = translation;
+    textSpans[0].marks = [];
+    for (let i = 1; i < textSpans.length; i++) {
+      textSpans[i].text = '';
+      textSpans[i].marks = [];
+    }
+  }
+};
+
+/**
+ * Detects if an array is Sanity block content by checking its structure
+ * @param array The array to check
+ * @returns True if the array appears to be Sanity block content
+ */
+const isBlockContent = (array: any[]): boolean => {
+  return (
+    Array.isArray(array) &&
+    array.some(
+      (item) =>
+        item._type === BLOCK_CONTENT_TYPE &&
+        Array.isArray(item.children) &&
+        item.children.some(
+          (child: any) =>
+            child._type === SPAN_TYPE && typeof child.text === 'string',
+        ),
+    )
+  );
+};
 
 /**
  * Replaces translations in the given object based on the provided translation mappings.
@@ -70,6 +125,45 @@ const replaceTranslations = (
   if (!(typeof obj === 'object' && obj !== null)) return;
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   Object.entries(obj as Record<string, unknown>).forEach(([key, value]) => {
+    // Handle block content translations using our mapping
+    if (Array.isArray(value)) {
+      // Check if this array has any blocks that were joined for translation
+      blockContentMap.forEach((blockLocation, uniqueKey) => {
+        if (blockLocation.fieldName === key) {
+          // Find the translation for this block
+          const translatedFieldIndex = uniqueFieldsToTranslate.findIndex(
+            (f) => f.key === uniqueKey,
+          );
+
+          if (
+            translatedFieldIndex !== -1 &&
+            batchedTranslations[translatedFieldIndex]
+          ) {
+            const translation = batchedTranslations[translatedFieldIndex];
+            const { blockIndex } = blockLocation;
+
+            // Make sure the block exists
+            if (
+              value[blockIndex] &&
+              value[blockIndex]._type === BLOCK_CONTENT_TYPE &&
+              Array.isArray(value[blockIndex].children)
+            ) {
+              const block = value[blockIndex];
+
+              // Get all spans that have text
+              const textSpans = block.children.filter(
+                (child: any) =>
+                  child._type === SPAN_TYPE && typeof child.text === 'string',
+              );
+
+              // Apply the translation to the spans
+              applyTranslationToSpans(textSpans, translation);
+            }
+          }
+        }
+      });
+    }
+
     // Handle array fields that are marked as translatable
     if (Array.isArray(value) && translatableArrayFieldKeys.includes(key)) {
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -137,6 +231,43 @@ const mapFieldsToTranslate = (
 
   // Iterate over each entry in the data object
   Object.entries(data).forEach(([key, value]) => {
+    // Handle block content arrays (like "body" field)
+    if (Array.isArray(value) && isBlockContent(value)) {
+      // Process each block content in the array
+      value.forEach((block, blockIndex) => {
+        if (
+          block._type === BLOCK_CONTENT_TYPE &&
+          Array.isArray(block.children)
+        ) {
+          // Join all text from spans in this block
+          const joinedText = block.children
+            .filter(
+              (child: any) =>
+                child._type === SPAN_TYPE && typeof child.text === 'string',
+            )
+            .map((span: any) => span.text)
+            .join('');
+
+          if (joinedText.trim() !== '') {
+            // Generate a unique key using Sanity's uuid
+            const uniqueKey = uuid();
+
+            // Store the mapping between this key and the block location
+            blockContentMap.set(uniqueKey, {
+              fieldName: key,
+              blockIndex,
+            });
+
+            // Add to fields to translate with the unique key
+            fieldsToTranslate.push({
+              key: uniqueKey,
+              value: joinedText,
+            });
+          }
+        }
+      });
+      return;
+    }
     // Handle array fields that are marked as translatable
     if (Array.isArray(value) && translatableArrayFieldKeys.includes(key)) {
       arrayFieldsToTranslate.push({ key, value });
@@ -329,6 +460,11 @@ async function translateJSONData(
       ),
       null,
       language,
+      // eslint-disable-next-line no-warning-comments
+      // TODO: Add context to the headers using the next object if it it just a regular text as a context
+      // {
+      //   context: ''
+      // }
     );
 
     const formattedTranslations = translations.map((translation, index) => {
