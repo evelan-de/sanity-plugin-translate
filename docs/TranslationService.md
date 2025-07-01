@@ -40,12 +40,38 @@ The `TranslationService` is a core component of the Sanity plugin for translatio
 
 ## Translation Process Flow
 
-1. **Document Identification**: Locates the document using its ID
-2. **Reference Processing**: Identifies and processes references
-3. **Field Mapping**: Maps fields for translation using `mapFieldsToTranslate`
-4. **Translation**: Translates content via DeepL API in batches (50 items per batch)
-5. **Format Preservation**: Preserves spaces, capitalization, and other formatting
-6. **Document Update**: Updates the document in Sanity with translated content
+1. **Document Identification**: The service first identifies the document to be translated using its ID.
+
+2. **Reference Processing**: Any references within the document are processed to maintain proper linking across language versions.
+
+3. **Field Mapping**: The service maps all translatable fields in the document, including nested objects and arrays.
+
+4. **Translation**: Text is sent to the DeepL API in batches (50 items per batch) for translation.
+
+5. **Format Preservation**: The service preserves spaces, capitalization, and other formatting during translation.
+
+6. **Document Update**: The translated document is updated in Sanity with the new translations.
+
+### Detailed Flow Diagram
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│                 │     │                 │     │                 │
+│  Document       │────▶│  Reference      │────▶│  Field          │
+│  Identification │     │  Processing     │     │  Mapping        │
+│                 │     │                 │     │                 │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+                                                        │
+                                                        ▼
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│                 │     │                 │     │                 │
+│  Document       │◀────│  Format         │◀────│  Translation    │
+│  Update         │     │  Preservation   │     │  via DeepL      │
+│                 │     │                 │     │                 │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+During the Field Mapping phase, special handling is applied to block content arrays, which follows its own sub-process (see [BlockContentProcessing.md](./BlockContentProcessing.md) for details).
 
 ## Configuration
 
@@ -98,6 +124,8 @@ Updates references to point to the correct language versions of referenced docum
 
 ## Block Content Translation
 
+> **Note:** For a comprehensive understanding of the block content processing system, please refer to the detailed documentation in [BlockContentProcessing.md](./BlockContentProcessing.md). This section provides a high-level overview of the functionality.
+
 Sanity's block content (rich text) is handled specially to improve translation quality while maintaining document structure.
 
 ### Sample Block Content Structure
@@ -109,44 +137,28 @@ Below is a simplified example of Sanity's block content structure. This shows ho
   {
     "_key": "a1b2c3",
     "_type": "block",
+    "style": "normal",
     "children": [
       {
         "_key": "d4e5f6",
         "_type": "span",
-        "marks": [],
-        "text": "This is a heading"
+        "marks": ["strong"],
+        "text": "This is bold text"
       }
-    ],
-    "markDefs": [],
-    "style": "h2"
+    ]
   },
   {
     "_key": "g7h8i9",
     "_type": "block",
+    "style": "h2",
     "children": [
       {
-        "_key": "j1k2l3",
+        "_key": "j0k1l2",
         "_type": "span",
         "marks": [],
-        "text": "This is a paragraph with "
-      },
-      {
-        "_key": "m4n5o6",
-        "_type": "span",
-        "marks": [
-          "strong"
-        ],
-        "text": "bold text"
-      },
-      {
-        "_key": "p7q8r9",
-        "_type": "span",
-        "marks": [],
-        "text": " and normal text again."
+        "text": "This is a heading"
       }
-    ],
-    "markDefs": [],
-    "style": "normal"
+    ]
   }
 ]
 ```
@@ -156,6 +168,27 @@ In this example:
 - Within each block, there are one or more spans containing the actual text
 - Spans can have marks (like "strong" for bold text)
 - When multiple spans exist in a block, they often represent different styling within the same paragraph
+
+### Key Features
+
+The block content translation system includes several advanced features:
+
+1. **Header Context Enhancement**: Provides context for header blocks using the text from subsequent normal blocks, improving translation quality.
+
+2. **Nested Block Content Detection**: Automatically identifies and processes block content arrays nested within objects at any depth.
+
+3. **Path-Based Mapping**: Uses array paths and indices to create unique keys for each block, ensuring correct translation alignment across language versions.
+
+4. **Modular Architecture**: All block content processing logic is centralized in dedicated utility functions in `blockContentUtils.ts`.
+
+### Integration
+
+The TranslationService integrates with block content utilities at two key points:
+
+1. During field mapping (`mapFieldsToTranslate`): Detects and processes block content arrays
+2. During translation application (`replaceTranslations`): Applies translations back to the original structure
+
+> **For Developers:** The block content processing system has been fully refactored for better separation of concerns. See [BlockContentProcessing.md](./BlockContentProcessing.md) for detailed implementation information, process flow diagrams, and edge case handling.
 
 ### Detection
 
