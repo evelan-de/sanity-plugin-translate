@@ -97,7 +97,8 @@ This function recursively traverses the document structure to identify fields th
 - Special handling for block content
 
 ```typescript
-const { fieldsToTranslate, arrayFieldsToTranslate } = mapFieldsToTranslate(jsonData);
+const { fieldsToTranslate, arrayFieldsToTranslate } =
+  mapFieldsToTranslate(jsonData);
 ```
 
 ### `replaceTranslations`
@@ -164,6 +165,7 @@ Below is a simplified example of Sanity's block content structure. This shows ho
 ```
 
 In this example:
+
 - Each block represents a paragraph or heading
 - Within each block, there are one or more spans containing the actual text
 - Spans can have marks (like "strong" for bold text)
@@ -193,6 +195,7 @@ The TranslationService integrates with block content utilities at two key points
 ### Detection
 
 Block content arrays are detected using the `isBlockContent` helper function, which identifies arrays containing objects with:
+
 - `_type` property equal to 'block'
 - `children` array containing spans with text
 
@@ -229,6 +232,7 @@ This approach preserves the context of the text during translation, resulting in
 When applying translations back to block content:
 
 1. For single-span blocks:
+
    - The translation is applied directly
    - Original marks (styling) are preserved
 
@@ -308,7 +312,8 @@ const SPAN_TYPE = 'span';
 The service uses a Map to track block content during translation:
 
 ```typescript
-const blockContentMap: Map<string, { fieldName: string; blockIndex: number }> = new Map();
+const blockContentMap: Map<string, { fieldName: string; blockIndex: number }> =
+  new Map();
 ```
 
 This map associates UUID keys with block locations, allowing the service to apply translations back to the correct blocks.

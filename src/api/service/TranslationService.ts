@@ -175,11 +175,20 @@ const mapFieldsToTranslate = (
   parentType: string,
   path: string = '',
 ): {
-  fieldsToTranslate: { key: string; value: string; context?: string }[];
+  fieldsToTranslate: {
+    key: string;
+    value: string;
+    context?: string;
+    isHtml?: boolean;
+  }[];
   arrayFieldsToTranslate: { key: string; value: string | string[] }[];
 } => {
-  const fieldsToTranslate: { key: string; value: string; context?: string }[] =
-    [];
+  const fieldsToTranslate: {
+    key: string;
+    value: string;
+    context?: string;
+    isHtml?: boolean;
+  }[] = [];
   const arrayFieldsToTranslate: {
     key: string;
     value: string | string[];
@@ -337,6 +346,194 @@ const findLatestDocumentId = async (
   return newTranslation.value._ref;
 };
 
+/**
+ * Process items with context individually for better translation quality
+ * This will mostly handle block content header blocks
+ */
+async function processItemsWithContext(
+  itemsWithContext: {
+    key: string;
+    value: string;
+    context?: string;
+    isHtml?: boolean;
+  }[],
+  translator: deepl.Translator,
+  language: deepl.TargetLanguageCode,
+  translationMap: Map<string, string>,
+): Promise<void> {
+  for (const field of itemsWithContext) {
+    if (typeof field.value !== 'string' || field.value.trim() === '') {
+      continue;
+    }
+
+    // Handle HTML fields differently
+    if (field.isHtml) {
+      // Translate HTML with tag handling and context
+      const translations = await translator.translateText(
+        [field.value],
+        null,
+        language,
+        {
+          context: field.context,
+          tagHandling: 'html',
+        },
+      );
+
+      // Store translation in the map using the field's key (no formatting needed for HTML)
+      translationMap.set(field.key, translations[0].text);
+    } else {
+      // Handle regular text fields with context
+      const textToTranslate = {
+        original: field.value,
+        lowercased: field.value.toLowerCase(),
+        context: field.context,
+      };
+
+      // Translate with context
+      const translations = await translator.translateText(
+        [textToTranslate.original],
+        null,
+        language,
+        {
+          context: textToTranslate.context,
+        },
+      );
+
+      // Store translation in the map using the field's key
+      let translatedText = translations[0].text;
+
+      // Preserve original capitalization if the original was all lowercase
+      if (textToTranslate.lowercased === textToTranslate.original) {
+        translatedText = translatedText.toLowerCase();
+      }
+
+      // Preserve leading/trailing spaces
+      const leadingSpaces = textToTranslate.original.match(/^\s*/);
+      const trailingSpaces = textToTranslate.original.match(/\s*$/);
+      if (leadingSpaces || trailingSpaces) {
+        translatedText =
+          (leadingSpaces ? leadingSpaces[0] : '') +
+          translatedText.trim() +
+          (trailingSpaces ? trailingSpaces[0] : '');
+      }
+
+      translationMap.set(field.key, translatedText);
+    }
+  }
+}
+
+/**
+ * Process items without context in batches for efficiency
+ */
+async function processItemsWithoutContext(
+  itemsWithoutContext: {
+    key: string;
+    value: string;
+    context?: string;
+    isHtml?: boolean;
+  }[],
+  translator: deepl.Translator,
+  language: deepl.TargetLanguageCode,
+  translationMap: Map<string, string>,
+): Promise<void> {
+  // Separate HTML and regular items within this batch
+  const htmlItemsWithoutContext = itemsWithoutContext.filter(
+    (field) => field.isHtml,
+  );
+  const regularItemsWithoutContext = itemsWithoutContext.filter(
+    (field) => !field.isHtml,
+  );
+
+  // console.log('htmlItemsWithoutContext', htmlItemsWithoutContext);
+  // console.log('regularItemsWithoutContext', regularItemsWithoutContext);
+
+  // Process HTML items without context in batches
+  for (let i = 0; i < htmlItemsWithoutContext.length; i += 50) {
+    const batch = htmlItemsWithoutContext.slice(i, i + 50);
+    const htmlToTranslate = batch
+      .map((field) => ({
+        original: field.value,
+        fieldKey: field.key,
+      }))
+      .filter(
+        (item) =>
+          typeof item.original === 'string' && item.original.trim() !== '',
+      );
+
+    if (htmlToTranslate.length === 0) {
+      continue;
+    }
+
+    // Translate HTML with tag handling
+    const translations = await translator.translateText(
+      htmlToTranslate.map((item) => item.original),
+      null,
+      language,
+      {
+        tagHandling: 'html',
+      },
+    );
+
+    // Map each translation back to its original field key
+    translations.forEach((translation, index) => {
+      const item = htmlToTranslate[index];
+      // Store in the map using the field's key (no formatting needed for HTML)
+      translationMap.set(item.fieldKey, translation.text);
+    });
+  }
+
+  // Process regular items without context in batches for efficiency
+  for (let i = 0; i < regularItemsWithoutContext.length; i += 50) {
+    const batch = regularItemsWithoutContext.slice(i, i + 50);
+    const textToTranslate = batch
+      .map((field, idx) => ({
+        original: field.value,
+        lowercased:
+          typeof field.value === 'string'
+            ? field.value.toLowerCase()
+            : field.value,
+        fieldKey: field.key, // Track the original field key
+        batchIndex: idx, // Track position in this batch
+      }))
+      .filter(
+        (item) =>
+          typeof item.lowercased === 'string' && item.lowercased.trim() !== '',
+      );
+
+    if (textToTranslate.length === 0) {
+      continue;
+    }
+
+    const translations = await translator.translateText(
+      textToTranslate.map((item) =>
+        item.original === item.original.toUpperCase()
+          ? item.lowercased
+          : item.original,
+      ),
+      null,
+      language,
+    );
+
+    // Map each translation back to its original field key
+    translations.forEach((translation, index) => {
+      const item = textToTranslate[index];
+      const originalText = item.original;
+      const leadingSpace = originalText.startsWith(' ') ? ' ' : '';
+      const trailingSpace = originalText.endsWith(' ') ? ' ' : '';
+      const adjustedTranslation =
+        leadingSpace + translation.text + trailingSpace;
+
+      const formattedTranslation =
+        originalText === originalText.toUpperCase()
+          ? adjustedTranslation.toUpperCase()
+          : adjustedTranslation;
+
+      // Store in the map using the field's key
+      translationMap.set(item.fieldKey, formattedTranslation);
+    });
+  }
+}
+
 async function translateJSONData(
   jsonData: SanityDocumentLike & {
     language?: string;
@@ -393,7 +590,7 @@ async function translateJSONData(
   // Create a translation map keyed by unique field keys instead of using array indices
   const translationMap = new Map<string, string>();
 
-  // Separate items with context (headers) from items without context
+  // Separate by context first (maintaining original efficient structure)
   const itemsWithContext = uniqueFieldsToTranslate.filter(
     (field) => field.context,
   );
@@ -401,97 +598,24 @@ async function translateJSONData(
     (field) => !field.context,
   );
 
+  // console.log('itemsWithContext', itemsWithContext);
+  // console.log('itemsWithoutContext', itemsWithoutContext);
+
   // Process items with context individually to provide specific context for each header
-  for (const field of itemsWithContext) {
-    if (typeof field.value !== 'string' || field.value.trim() === '') {
-      continue;
-    }
-
-    const textToTranslate = {
-      original: field.value,
-      lowercased: field.value.toLowerCase(),
-      context: field.context,
-    };
-
-    // Translate each header individually with its specific context
-    const translations = await translator.translateText(
-      [
-        textToTranslate.original === textToTranslate.original.toUpperCase()
-          ? textToTranslate.lowercased
-          : textToTranslate.original,
-      ],
-      null,
-      language,
-      {
-        context: textToTranslate.context,
-      },
-    );
-
-    const translation = translations[0];
-    const originalText = textToTranslate.original;
-    const leadingSpace = originalText.startsWith(' ') ? ' ' : '';
-    const trailingSpace = originalText.endsWith(' ') ? ' ' : '';
-    const adjustedTranslation = leadingSpace + translation.text + trailingSpace;
-
-    const formattedTranslation =
-      originalText === originalText.toUpperCase()
-        ? adjustedTranslation.toUpperCase()
-        : adjustedTranslation;
-
-    // Store translation in the map using the field's key
-    translationMap.set(field.key, formattedTranslation);
-  }
+  await processItemsWithContext(
+    itemsWithContext,
+    translator,
+    language,
+    translationMap,
+  );
 
   // Process items without context in batches for efficiency
-  for (let i = 0; i < itemsWithoutContext.length; i += 50) {
-    const batch = itemsWithoutContext.slice(i, i + 50);
-    const textToTranslate = batch
-      .map((field, idx) => ({
-        original: field.value,
-        lowercased:
-          typeof field.value === 'string'
-            ? field.value.toLowerCase()
-            : field.value,
-        fieldKey: field.key, // Track the original field key
-        batchIndex: idx, // Track position in this batch
-      }))
-      .filter(
-        (item) =>
-          typeof item.lowercased === 'string' && item.lowercased.trim() !== '',
-      );
-
-    if (textToTranslate.length === 0) {
-      continue;
-    }
-
-    const translations = await translator.translateText(
-      textToTranslate.map((item) =>
-        item.original === item.original.toUpperCase()
-          ? item.lowercased
-          : item.original,
-      ),
-      null,
-      language,
-    );
-
-    // Map each translation back to its original field key
-    translations.forEach((translation, index) => {
-      const item = textToTranslate[index];
-      const originalText = item.original;
-      const leadingSpace = originalText.startsWith(' ') ? ' ' : '';
-      const trailingSpace = originalText.endsWith(' ') ? ' ' : '';
-      const adjustedTranslation =
-        leadingSpace + translation.text + trailingSpace;
-
-      const formattedTranslation =
-        originalText === originalText.toUpperCase()
-          ? adjustedTranslation.toUpperCase()
-          : adjustedTranslation;
-
-      // Store in the map using the field's key
-      translationMap.set(item.fieldKey, formattedTranslation);
-    });
-  }
+  await processItemsWithoutContext(
+    itemsWithoutContext,
+    translator,
+    language,
+    translationMap,
+  );
 
   // Create a batchedTranslations array for backward compatibility
   const batchedTranslations = uniqueFieldsToTranslate.map(

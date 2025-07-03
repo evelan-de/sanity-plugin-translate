@@ -69,9 +69,11 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@portabletext/to-html": "2.0.14",
     "@sanity/incompatible-plugin": "1.0.4",
     "@sanity/ui": "2.8.8",
-    "deepl-node": "1.13.0"
+    "deepl-node": "1.13.0",
+    "html-react-parser": "5.2.5"
   },
   "devDependencies": {
     "@commitlint/cli": "19.4.0",

@@ -52,6 +52,7 @@ Sanity's block content is structured as follows:
 ```
 
 Key characteristics:
+
 - Each block represents a paragraph, heading, or other content unit
 - Blocks have a `style` property indicating their type (normal, h1, h2, etc.)
 - Each block contains an array of `children`, typically spans
@@ -65,6 +66,7 @@ The block content processing functionality has been refactored into a dedicated 
 - **Integration**: Used by `TranslationService.ts` for processing block content
 
 This architecture allows for:
+
 - Centralized management of block content processing logic
 - Easier testing and maintenance
 - Clear separation between translation service and block content handling
@@ -175,6 +177,7 @@ export const findContextForHeaderBlock = (
 ```
 
 Key rules:
+
 - Only use the immediately following normal block as context
 - Don't look past consecutive headers
 - If no suitable context is found, translate without context
@@ -188,6 +191,7 @@ To ensure accurate translation application, the system uses a robust mapping str
 3. When translations are received, they are matched back to the original blocks using this map
 
 This approach handles:
+
 - Multiple block content arrays in the same document
 - Nested block content arrays (e.g., within objects)
 - Blocks with identical content but different locations
@@ -201,6 +205,7 @@ The path mapping strategy is a critical component that ensures translations are 
 There are two types of keys used in the translation process:
 
 1. **UUID-based keys**: Generated for block content items using `uuid()` function
+
    - Used for blocks within block content arrays
    - Ensures uniqueness across the entire document
    - Example: `'522fcf74-eb07-4286-ba91-46de96a6f310'`
@@ -222,6 +227,7 @@ const currentPath = path ? `${path}.${key}` : key;
 ```
 
 This creates paths like:
+
 - `body.0.sectionTitle` (first section's title in the body array)
 - `footerCTASection.primaryCta.label` (label in the footer CTA section)
 
@@ -247,7 +253,7 @@ Let's examine some real translation data to understand how the mapping works:
 translationMap Map(47) {
   // UUID-based keys for block content
   '522fcf74-eb07-4286-ba91-46de96a6f310' => 'Where individual design meets boundless freedom',
-  
+
   // Path-based keys for regular fields
   'body.0.ctaLink.label' => 'Click here to see the homepage',
   'footerCTASection.primaryCta.label' => 'Request an initial consultation'
@@ -284,11 +290,11 @@ The `blockContentMap` maintains the relationship between the UUID keys and their
 
 ```typescript
 export interface BlockContentMapItem {
-  fieldName: string;    // The field name (e.g., 'text')
-  blockIndex: number;   // The index within the block content array
-  context?: string;     // Optional context for header blocks
-  isHeader: boolean;    // Whether this is a header block
-  arrayPath: string;    // Path to the array containing this block
+  fieldName: string; // The field name (e.g., 'text')
+  blockIndex: number; // The index within the block content array
+  context?: string; // Optional context for header blocks
+  isHeader: boolean; // Whether this is a header block
+  arrayPath: string; // Path to the array containing this block
 }
 ```
 
@@ -386,7 +392,7 @@ if (typeof value === 'object') {
     path,
     fieldsToTranslate,
   });
-  
+
   // Continue with regular object processing...
 }
 ```
