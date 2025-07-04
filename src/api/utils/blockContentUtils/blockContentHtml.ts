@@ -108,6 +108,9 @@ export const convertBlockToHtml = (block: any): string => {
         },
       },
       // Catch-all for any other custom marks
+      unknownBlockStyle: ({ children, value }) => {
+        return `<span data-block-style="${value.style}" data-block-key="${value._key}">${children}</span>`;
+      },
       unknownMark: ({ children, markKey }) => {
         return `<span data-mark="${markKey}">${children}</span>`;
       },
