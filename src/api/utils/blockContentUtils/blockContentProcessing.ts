@@ -188,7 +188,6 @@ export const applyBlockContentTranslations = (
   params: ApplyBlockContentTranslationsParams,
 ): void => {
   const { value, key, currentArrayPath, translationMap } = params;
-  // fieldsToTranslate is available in params but not used in this function
 
   // Find all translations for this array path
   const relevantKeys = Array.from(blockContentMap.keys()).filter((mapKey) => {

@@ -3,6 +3,7 @@
  */
 import { PortableTextHtmlComponents, toHTML } from '@portabletext/to-html';
 import { uuid } from '@sanity/uuid';
+import * as htmlparser2 from 'htmlparser2';
 
 import { HTML_TO_MARK_MAP, SPAN_TYPE } from './blockContentTypes';
 
@@ -138,182 +139,102 @@ export const convertBlockToHtml = (block: any): string => {
 };
 
 /**
- * Extract text segments with marks from HTML
- * @param html HTML string to parse
- * @returns Array of segments with text, marks, and position
- */
-export const extractSegmentsFromHtml = (
-  html: string,
-): {
-  text: string;
-  marks: string[];
-  startIndex: number;
-  endIndex: number;
-}[] => {
-  const segments: {
-    text: string;
-    marks: string[];
-    startIndex: number;
-    endIndex: number;
-  }[] = [];
-
-  // Extract links with markDef keys
-  const linkRegex = /<a[^>]*data-markdef-key="([^"]*)"[^>]*>([^<]*)<\/a>/g;
-  let linkMatch;
-  while ((linkMatch = linkRegex.exec(html)) !== null) {
-    const [fullMatch, markDefKey, linkText] = linkMatch;
-    if (markDefKey && linkText) {
-      segments.push({
-        text: linkText,
-        marks: [markDefKey],
-        startIndex: linkMatch.index,
-        endIndex: linkMatch.index + fullMatch.length,
-      });
-    }
-  }
-
-  // Process standard marks (strong, em, etc.)
-  for (const [tag, mark] of Object.entries(HTML_TO_MARK_MAP)) {
-    const tagRegex = new RegExp(`<${tag}[^>]*>([^<]*)</${tag}>`, 'g');
-    let tagMatch;
-    while ((tagMatch = tagRegex.exec(html)) !== null) {
-      const [fullMatch, content] = tagMatch;
-      if (content) {
-        segments.push({
-          text: content,
-          marks: [mark],
-          startIndex: tagMatch.index,
-          endIndex: tagMatch.index + fullMatch.length,
-        });
-      }
-    }
-  }
-
-  // Process custom marks with data-mark attribute
-  const customMarkRegex = /<span[^>]*data-mark="([^"]*)"[^>]*>([^<]*)<\/span>/g;
-  let customMarkMatch;
-  while ((customMarkMatch = customMarkRegex.exec(html)) !== null) {
-    const [fullMatch, markName, content] = customMarkMatch;
-    if (markName && content) {
-      segments.push({
-        text: content,
-        marks: [markName],
-        startIndex: customMarkMatch.index,
-        endIndex: customMarkMatch.index + fullMatch.length,
-      });
-    }
-  }
-
-  return segments.sort((a, b) => a.startIndex - b.startIndex);
-};
-
-/**
- * Build a map of character positions to marks
- * @param segments Text segments with marks
- * @param plainText Plain text version of HTML
- * @returns Map of character positions to marks
- */
-export const buildMarkMap = (
-  segments: {
-    text: string;
-    marks: string[];
-    startIndex: number;
-    endIndex: number;
-  }[],
-  plainText: string,
-): Map<number, string[]> => {
-  const markMap = new Map<number, string[]>();
-  let currentPosition = 0;
-
-  for (const segment of segments) {
-    const segmentText = segment.text;
-    const textPosition = plainText.indexOf(segmentText, currentPosition);
-
-    if (textPosition >= 0) {
-      // Apply marks to each character position
-      for (let i = 0; i < segmentText.length; i++) {
-        const position = textPosition + i;
-        const existingMarks = markMap.get(position) || [];
-        markMap.set(position, [...existingMarks, ...segment.marks]);
-      }
-
-      // Update current position to avoid re-matching the same text
-      currentPosition = textPosition + segmentText.length;
-    }
-  }
-
-  return markMap;
-};
-
-/**
- * Parse HTML string into Sanity spans with marks
+ * Parse HTML string into Sanity spans with marks using htmlparser2
  * @param html HTML string to parse
  * @returns Array of span objects with marks
  */
 export const parseHtmlToSpans = (html: string): any[] => {
-  // Extract all segments with marks from the HTML
-  const segments = extractSegmentsFromHtml(html);
-
-  // If no segments were found, extract the plain text
-  if (segments.length === 0) {
-    const plainText = html.replace(/<[^>]*>/g, '');
-    if (plainText.trim()) {
-      return [
-        {
-          _type: SPAN_TYPE,
-          _key: uuid(),
-          text: plainText,
-          marks: [],
-        },
-      ];
-    }
-    return [];
-  }
-
-  // Extract plain text version for reference
-  const plainText = html.replace(/<[^>]*>/g, '');
-
-  // Build a map of character positions to marks
-  const markMap = buildMarkMap(segments, plainText);
-
-  // Create spans based on continuous runs of the same marks
+  // Store the spans we'll create
   const spans: any[] = [];
-  let currentMarks: string[] = [];
+
+  // Track current text and marks
   let currentText = '';
+  const currentMarks: string[] = [];
 
-  for (let i = 0; i < plainText.length; i++) {
-    const char = plainText[i];
-    const marksAtPosition = markMap.get(i) || [];
-
-    // If marks changed, create a new span
-    if (JSON.stringify(marksAtPosition) !== JSON.stringify(currentMarks)) {
-      if (currentText) {
-        spans.push({
-          _type: SPAN_TYPE,
-          _key: uuid(),
-          text: currentText,
-          marks: currentMarks,
-        });
-      }
-
-      currentText = char;
-      currentMarks = marksAtPosition;
-    } else {
-      currentText += char;
+  // Function to create a span with the current text and marks
+  const createSpan = () => {
+    if (currentText.trim()) {
+      spans.push({
+        _type: SPAN_TYPE,
+        _key: uuid(),
+        text: currentText,
+        marks: [...currentMarks], // Create a copy to avoid reference issues
+      });
     }
-  }
+    currentText = '';
+  };
 
-  // Add the last span
+  // Create parser instance
+  const parser = new htmlparser2.Parser(
+    {
+      onopentag(name, attributes) {
+        // If we have accumulated text, create a span before changing marks
+        if (currentText) {
+          createSpan();
+        }
+
+        // Add mark based on tag type
+        if (name === 'a' && attributes['data-markdef-key']) {
+          currentMarks.push(attributes['data-markdef-key']);
+        } else if (name === 'span' && attributes['data-mark']) {
+          currentMarks.push(attributes['data-mark']);
+        } else if (HTML_TO_MARK_MAP[name]) {
+          currentMarks.push(HTML_TO_MARK_MAP[name]);
+        }
+      },
+      ontext(text) {
+        // Add text to current accumulation
+        currentText += text;
+      },
+      onclosetag(name) {
+        // Create a span with the accumulated text
+        createSpan();
+
+        // Remove the mark associated with this tag
+        if (name === 'a' || name === 'span' || HTML_TO_MARK_MAP[name]) {
+          // Find the mark to remove
+          let markToRemove: string | undefined;
+
+          if (name === 'a') {
+            // Find any markDef key in the marks array
+            markToRemove = currentMarks.find(
+              (mark) =>
+                !Object.values(HTML_TO_MARK_MAP).includes(mark) &&
+                !mark.startsWith('primary') &&
+                !mark.startsWith('secondary'),
+            );
+          } else if (name === 'span') {
+            // Find any custom mark (primary/secondary)
+            markToRemove = currentMarks.find(
+              (mark) => mark === 'primary' || mark === 'secondary',
+            );
+          } else if (HTML_TO_MARK_MAP[name]) {
+            // Find the standard HTML mark
+            markToRemove = HTML_TO_MARK_MAP[name];
+          }
+
+          if (markToRemove) {
+            const index = currentMarks.indexOf(markToRemove);
+            if (index !== -1) {
+              currentMarks.splice(index, 1);
+            }
+          }
+        }
+      },
+    },
+    { decodeEntities: true },
+  );
+
+  // Parse the HTML
+  parser.write(html);
+  parser.end();
+
+  // Create the final span if there's any remaining text
   if (currentText) {
-    spans.push({
-      _type: SPAN_TYPE,
-      _key: uuid(),
-      text: currentText,
-      marks: currentMarks,
-    });
+    createSpan();
   }
 
-  // Filter out empty spans and merge consecutive spans with same marks
+  // Merge consecutive spans with the same marks
   return spans
     .filter((span) => span.text.trim())
     .reduce((merged: any[], current: any) => {
@@ -345,38 +266,59 @@ export const parseHtmlToBlockStructure = (
   originalBlock: any,
 ): any => {
   try {
-    // Remove the wrapping <p> tags that toHTML adds
-    const cleanHtml = translatedHtml.replace(/^<p>|<\/p>$/g, '');
-
-    // Extract block key from data attribute
-    const blockKeyMatch = cleanHtml.match(/data-block-key="([^"]*)"/i);
-    const blockKey = blockKeyMatch ? blockKeyMatch[1] : originalBlock._key;
-
-    // Extract block style from data attribute
-    const blockStyleMatch = cleanHtml.match(/data-block-style="([^"]*)"/i);
-    const blockStyle = blockStyleMatch
-      ? blockStyleMatch[1]
-      : originalBlock.style;
-
-    // Extract markDefs from data attribute
-    const markDefsMatch = cleanHtml.match(/data-markdefs="([^"]*)"/i);
-    let markDefs = originalBlock.markDefs || [];
-    if (markDefsMatch && markDefsMatch[1]) {
-      try {
-        markDefs = JSON.parse(decodeURIComponent(markDefsMatch[1]));
-      } catch (e) {
-        console.error('Failed to parse markDefs from HTML', e);
-      }
-    }
-
-    // Create a new block based on the original but with extracted data
+    // Create a new block based on the original
     const newBlock = {
       ...originalBlock,
-      _key: blockKey,
-      style: blockStyle,
-      markDefs: markDefs,
+      _key: originalBlock._key, // Default to original key, will be updated if found in HTML
+      style: originalBlock.style, // Default to original style, will be updated if found in HTML
+      markDefs: originalBlock.markDefs || [], // Default to original markDefs, will be updated if found in HTML
       children: [],
     };
+
+    // Track if we've found the block attributes
+    let foundBlockKey = false;
+    let foundBlockStyle = false;
+    let foundMarkDefs = false;
+
+    // Create a simple parser to extract block attributes
+    const attributeParser = new htmlparser2.Parser(
+      {
+        onopentag(_, attributes) {
+          // Extract block key from data attribute
+          if (!foundBlockKey && attributes['data-block-key']) {
+            newBlock._key = attributes['data-block-key'];
+            foundBlockKey = true;
+          }
+
+          // Extract block style from data attribute
+          if (!foundBlockStyle && attributes['data-block-style']) {
+            newBlock.style = attributes['data-block-style'];
+            foundBlockStyle = true;
+          }
+
+          // Extract markDefs from data attribute
+          if (!foundMarkDefs && attributes['data-markdefs']) {
+            try {
+              newBlock.markDefs = JSON.parse(
+                decodeURIComponent(attributes['data-markdefs']),
+              );
+              foundMarkDefs = true;
+            } catch (e) {
+              console.error('Failed to parse markDefs from HTML', e);
+            }
+          }
+        },
+      },
+      { decodeEntities: true },
+    );
+
+    // Parse the HTML to extract block attributes
+    attributeParser.write(translatedHtml);
+    attributeParser.end();
+
+    // Remove the wrapping <p> tags that toHTML adds if they exist
+    // This is still using regex but only for a very simple case
+    const cleanHtml = translatedHtml.replace(/^<p>|<\/p>$/g, '');
 
     // Parse HTML and convert back to spans with marks
     const spans = parseHtmlToSpans(cleanHtml);
@@ -391,8 +333,22 @@ export const parseHtmlToBlockStructure = (
       'Failed to parse HTML back to block structure, falling back to text:',
       error,
     );
-    // Fallback: just replace text in first span
-    const textContent = translatedHtml.replace(/<[^>]*>/g, '');
+
+    // Create a plain text parser for the fallback
+    let textContent = '';
+    const textParser = new htmlparser2.Parser(
+      {
+        ontext(text) {
+          textContent += text;
+        },
+      },
+      { decodeEntities: true },
+    );
+
+    // Parse the HTML to extract text content
+    textParser.write(translatedHtml);
+    textParser.end();
+
     return {
       ...originalBlock,
       children: [
