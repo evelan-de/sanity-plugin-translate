@@ -97,7 +97,8 @@ This function recursively traverses the document structure to identify fields th
 - Special handling for block content
 
 ```typescript
-const { fieldsToTranslate, arrayFieldsToTranslate } = mapFieldsToTranslate(jsonData);
+const { fieldsToTranslate, arrayFieldsToTranslate } =
+  mapFieldsToTranslate(jsonData);
 ```
 
 ### `replaceTranslations`
@@ -126,11 +127,11 @@ Updates references to point to the correct language versions of referenced docum
 
 > **Note:** For a comprehensive understanding of the block content processing system, please refer to the detailed documentation in [BlockContentProcessing.md](./BlockContentProcessing.md). This section provides a high-level overview of the functionality.
 
-Sanity's block content (rich text) is handled specially to improve translation quality while maintaining document structure.
+Sanity's block content (rich text) is handled specially to improve translation quality while maintaining document structure, formatting, and interactive elements.
 
 ### Sample Block Content Structure
 
-Below is a simplified example of Sanity's block content structure. This shows how content is organized in blocks with nested spans, each potentially having different marks (styling):
+Below is a simplified example of Sanity's block content structure. This shows how content is organized in blocks with nested spans, each potentially having different marks (styling) and markDefs (links, references):
 
 ```json
 "body": [
@@ -138,12 +139,19 @@ Below is a simplified example of Sanity's block content structure. This shows ho
     "_key": "a1b2c3",
     "_type": "block",
     "style": "normal",
+    "markDefs": [
+      {
+        "_key": "link123",
+        "_type": "link",
+        "href": "https://example.com"
+      }
+    ],
     "children": [
       {
         "_key": "d4e5f6",
         "_type": "span",
-        "marks": ["strong"],
-        "text": "This is bold text"
+        "marks": ["strong", "link123"],
+        "text": "This is bold linked text"
       }
     ]
   },
@@ -164,80 +172,112 @@ Below is a simplified example of Sanity's block content structure. This shows ho
 ```
 
 In this example:
+
 - Each block represents a paragraph or heading
 - Within each block, there are one or more spans containing the actual text
 - Spans can have marks (like "strong" for bold text)
+- markDefs define links and other references that can be referenced by marks
 - When multiple spans exist in a block, they often represent different styling within the same paragraph
 
 ### Key Features
 
 The block content translation system includes several advanced features:
 
-1. **Header Context Enhancement**: Provides context for header blocks using the text from subsequent normal blocks, improving translation quality.
+1. **HTML-Based Translation**: Converts complex blocks to HTML before translation to preserve marks, markDefs, and structure.
 
-2. **Nested Block Content Detection**: Automatically identifies and processes block content arrays nested within objects at any depth.
+2. **Header Context Enhancement**: Provides context for header blocks using the text from subsequent normal blocks, improving translation quality.
 
-3. **Path-Based Mapping**: Uses array paths and indices to create unique keys for each block, ensuring correct translation alignment across language versions.
+3. **Nested Block Content Detection**: Automatically identifies and processes block content arrays nested within objects at any depth.
 
-4. **Modular Architecture**: All block content processing logic is centralized in dedicated utility functions in `blockContentUtils.ts`.
+4. **Path-Based Mapping**: Uses array paths and indices to create unique keys for each block, ensuring correct translation alignment across language versions.
+
+5. **Modular Architecture**: All block content processing logic is organized in dedicated modules within the `blockContentUtils` folder.
+
+6. **Robust HTML Parsing**: Uses htmlparser2 for reliable HTML parsing after translation.
+
+### Modular Architecture
+
+The block content processing system has been refactored into a modular architecture:
+
+```
+src/api/utils/blockContentUtils/
+├── index.ts                   # Barrel file for re-exports
+├── blockContentTypes.ts       # Type definitions and constants
+├── blockContentDetection.ts   # Detection utilities
+├── blockContentContext.ts     # Context handling utilities
+├── blockContentHtml.ts        # HTML conversion and parsing utilities
+└── blockContentProcessing.ts  # Main processing functions
+```
+
+This modular approach improves maintainability, readability, and separation of concerns.
 
 ### Integration
 
-The TranslationService integrates with block content utilities at two key points:
+The TranslationService integrates with block content utilities at several key points:
 
-1. During field mapping (`mapFieldsToTranslate`): Detects and processes block content arrays
-2. During translation application (`replaceTranslations`): Applies translations back to the original structure
+1. **Field Mapping Phase**: Detects and processes block content arrays during `mapFieldsToTranslate`
+2. **Translation Request Phase**: Sets `tag_handling=html` for HTML fields when sending to DeepL
+3. **Translation Application Phase**: Parses HTML back to block structure for complex blocks
+4. **Optimization**: Batches fields and maintains context for efficient API usage
 
 > **For Developers:** The block content processing system has been fully refactored for better separation of concerns. See [BlockContentProcessing.md](./BlockContentProcessing.md) for detailed implementation information, process flow diagrams, and edge case handling.
 
-### Detection
+### HTML-Based Translation Process
 
-Block content arrays are detected using the `isBlockContent` helper function, which identifies arrays containing objects with:
-- `_type` property equal to 'block'
-- `children` array containing spans with text
+The system uses a smart detection approach to identify blocks that need HTML-based translation:
 
 ```typescript
-const isBlockContent = (array: any[]): boolean => {
-  return (
-    Array.isArray(array) &&
-    array.some(
-      (item) =>
-        item._type === BLOCK_CONTENT_TYPE &&
-        Array.isArray(item.children) &&
-        item.children.some(
-          (child: any) =>
-            child._type === SPAN_TYPE && typeof child.text === 'string',
-        ),
-    )
-  );
+export const shouldUseHtmlForBlock = (block: any): boolean => {
+  // Check if the block has markDefs
+  if (block.markDefs && block.markDefs.length > 0) {
+    return true;
+  }
+
+  // Check if any children have marks
+  if (block.children && Array.isArray(block.children)) {
+    for (const child of block.children) {
+      if (child.marks && Array.isArray(child.marks) && child.marks.length > 0) {
+        return true;
+      }
+    }
+
+    // Check if there are multiple children with text
+    const textChildren = block.children.filter(
+      (child: any) =>
+        child && child._type === SPAN_TYPE && typeof child.text === 'string',
+    );
+    if (textChildren.length > 1) {
+      return true;
+    }
+  }
+
+  return false;
 };
 ```
 
-### Text Joining
+For complex blocks (with marks, markDefs, or multiple children), the process is:
 
-When block content is detected, the service:
+1. Convert block to HTML using `@portabletext/to-html`
+2. Flag the field with `isHtml: true`
+3. Send to DeepL with `tag_handling=html`
+4. Parse the translated HTML back to block structure using htmlparser2
 
-1. Joins all text from spans within each block into a single string
-2. Generates a unique key using Sanity's UUID
-3. Stores a mapping between this key and the block's location
-4. Adds the joined text to the translation list with the unique key
-
-This approach preserves the context of the text during translation, resulting in better quality translations.
+For simple blocks, the traditional text-based approach is used for efficiency.
 
 ### Translation Application
 
 When applying translations back to block content:
 
-1. For single-span blocks:
-   - The translation is applied directly
-   - Original marks (styling) are preserved
+1. For HTML-based translations:
+   - Parse the HTML back to block structure using htmlparser2
+   - Preserve all marks, markDefs, and structure
+   - Maintain original _key values where possible
 
-2. For multi-span blocks:
-   - All translated text is placed in the first span
-   - All marks are removed to prevent inconsistent styling
-   - Other spans are emptied
+2. For simple text translations:
+   - Apply the translation directly to the span's text
+   - Preserve original marks
 
-This approach balances translation quality with document structure preservation.
+This approach ensures comprehensive preservation of formatting and interactive elements while maintaining translation quality.
 
 ## Usage Examples
 
@@ -308,7 +348,8 @@ const SPAN_TYPE = 'span';
 The service uses a Map to track block content during translation:
 
 ```typescript
-const blockContentMap: Map<string, { fieldName: string; blockIndex: number }> = new Map();
+const blockContentMap: Map<string, { fieldName: string; blockIndex: number }> =
+  new Map();
 ```
 
 This map associates UUID keys with block locations, allowing the service to apply translations back to the correct blocks.
