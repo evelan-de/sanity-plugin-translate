@@ -5,6 +5,17 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.12.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.11.0...v1.12.0) (2025-07-07)
+
+### Features
+
+- split utils into focused modules for improved maintainability ([1bf4026](https://github.com/evelan-de/sanity-plugin-translate/commit/1bf40261db2168a8be73462e5b41fd2cbecd42a4))
+
+### Bug Fixes
+
+- add unknownBlockStyle ([e557e19](https://github.com/evelan-de/sanity-plugin-translate/commit/e557e193f4126a0aaa0b5e66bdc0979a196d8b41))
+- block content translation processing ([a5a239e](https://github.com/evelan-de/sanity-plugin-translate/commit/a5a239e9729311e1673573620f49fd9eceeb0eec))
+
 ## [1.11.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.10.2...v1.11.0) (2025-06-27)
 
 ### Features
