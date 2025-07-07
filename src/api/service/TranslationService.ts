@@ -1,4 +1,3 @@
-import { uuid } from '@sanity/uuid';
 import * as deepl from 'deepl-node';
 import { SanityClient, SanityDocumentLike } from 'sanity';
 
@@ -17,6 +16,13 @@ import {
   loadOtherDocumentVersions,
   loadOtherDocumentVersionsFull,
 } from '../queries/documentLoader';
+import {
+  applyBlockContentTranslations,
+  clearBlockContentMap,
+  isBlockContent,
+  processBlockContent,
+  processNestedBlockContent,
+} from '../utils/blockContentUtils';
 
 // add here the string type keys that need to be translated
 const translatableFieldKeys = [
@@ -52,58 +58,6 @@ const mediaObjects = [
 // add here the array type keys that need to be translated
 const translatableArrayFieldKeys = ['keywords'];
 
-// Constants for Sanity block types
-const BLOCK_CONTENT_TYPE = 'block';
-const SPAN_TYPE = 'span';
-
-// Map to store block content mappings between UUID and original block location
-const blockContentMap: Map<string, { fieldName: string; blockIndex: number }> =
-  new Map();
-
-/**
- * Applies a translation to a block's spans
- * @param textSpans Array of span objects with text property
- * @param translation The translated text to apply
- */
-const applyTranslationToSpans = (
-  textSpans: any[],
-  translation: string,
-): void => {
-  if (textSpans.length === 1) {
-    // If there's only one span, replace its text directly and preserve marks
-    textSpans[0].text = translation;
-    // No need to modify marks for single spans
-  } else if (textSpans.length > 1) {
-    // If there are multiple spans, put all text in the first span, empty the others, and remove all marks
-    textSpans[0].text = translation;
-    textSpans[0].marks = [];
-    for (let i = 1; i < textSpans.length; i++) {
-      textSpans[i].text = '';
-      textSpans[i].marks = [];
-    }
-  }
-};
-
-/**
- * Detects if an array is Sanity block content by checking its structure
- * @param array The array to check
- * @returns True if the array appears to be Sanity block content
- */
-const isBlockContent = (array: any[]): boolean => {
-  return (
-    Array.isArray(array) &&
-    array.some(
-      (item) =>
-        item._type === BLOCK_CONTENT_TYPE &&
-        Array.isArray(item.children) &&
-        item.children.some(
-          (child: any) =>
-            child._type === SPAN_TYPE && typeof child.text === 'string',
-        ),
-    )
-  );
-};
-
 /**
  * Replaces translations in the given object based on the provided translation mappings.
  * This function recursively traverses the object and updates string values that match
@@ -115,52 +69,43 @@ const isBlockContent = (array: any[]): boolean => {
  * @param fieldsToTranslate List of fields eligible for translation.
  * @param uniqueFieldsToTranslate List of unique fields that have been translated.
  */
-const replaceTranslations = (
-  obj: unknown,
-  batchedArrayFieldTranslations: { key: string; value: unknown }[],
-  batchedTranslations: string[],
-  fieldsToTranslate: { key: string; value: string }[],
-  uniqueFieldsToTranslate: { key: string; value: string }[],
-) => {
-  if (!(typeof obj === 'object' && obj !== null)) return;
+// Create a type for the parameters to avoid the "too many parameters" lint error
+type ReplaceTranslationsParams = {
+  obj: unknown;
+  batchedArrayFieldTranslations: { key: string; value: unknown }[];
+  batchedTranslations: string[];
+  fieldsToTranslate: { key: string; value: string; context?: string }[];
+  translationMap?: Map<string, string>;
+  path?: string; // Make path optional with default value
+};
+
+const replaceTranslations = ({
+  obj,
+  batchedArrayFieldTranslations,
+  batchedTranslations,
+  fieldsToTranslate,
+  translationMap,
+  path = '', // Default to empty path
+}: ReplaceTranslationsParams): void => {
+  if (!(typeof obj === 'object' && obj !== null)) {
+    return;
+  }
+
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   Object.entries(obj as Record<string, unknown>).forEach(([key, value]) => {
     // Handle block content translations using our mapping
-    if (Array.isArray(value)) {
-      // Check if this array has any blocks that were joined for translation
-      blockContentMap.forEach((blockLocation, uniqueKey) => {
-        if (blockLocation.fieldName === key) {
-          // Find the translation for this block
-          const translatedFieldIndex = uniqueFieldsToTranslate.findIndex(
-            (f) => f.key === uniqueKey,
-          );
+    if (Array.isArray(value) && translationMap) {
+      // Calculate the current path for this array
+      const currentArrayPath = path ? `${path}.${key}` : key;
 
-          if (
-            translatedFieldIndex !== -1 &&
-            batchedTranslations[translatedFieldIndex]
-          ) {
-            const translation = batchedTranslations[translatedFieldIndex];
-            const { blockIndex } = blockLocation;
-
-            // Make sure the block exists
-            if (
-              value[blockIndex] &&
-              value[blockIndex]._type === BLOCK_CONTENT_TYPE &&
-              Array.isArray(value[blockIndex].children)
-            ) {
-              const block = value[blockIndex];
-
-              // Get all spans that have text
-              const textSpans = block.children.filter(
-                (child: any) =>
-                  child._type === SPAN_TYPE && typeof child.text === 'string',
-              );
-
-              // Apply the translation to the spans
-              applyTranslationToSpans(textSpans, translation);
-            }
-          }
-        }
+      // Use the utility function to apply translations to block content
+      applyBlockContentTranslations({
+        value,
+        key,
+        currentArrayPath,
+        translationMap,
+        fieldsToTranslate,
+        batchedTranslations,
       });
     }
 
@@ -175,34 +120,48 @@ const replaceTranslations = (
 
     // Recursively handle nested objects
     if (typeof value === 'object') {
-      replaceTranslations(
-        value,
+      const currentPath = path ? `${path}.${key}` : key;
+      replaceTranslations({
+        obj: value,
         batchedArrayFieldTranslations,
         batchedTranslations,
         fieldsToTranslate,
-        uniqueFieldsToTranslate,
-      );
+        translationMap,
+        path: currentPath, // Pass the current path to nested calls
+      });
       return;
     }
 
     // Replace string fields that are marked for translation
     if (typeof value === 'string' && value.trim() !== '') {
+      // First try to find an exact match with path-based key
       const field = fieldsToTranslate.find(
-        (f) => f.key === key && f.value === value,
+        (f) =>
+          (f.key === key || f.key.endsWith(`.${key}`)) && f.value === value,
       );
       if (!field) return;
 
-      const translatedFieldIndex = uniqueFieldsToTranslate.findIndex(
-        (f) => f.key === field.key && f.value === field.value,
-      );
+      // Use the translation map if available, otherwise fall back to array index
+      let translation;
+      if (translationMap && translationMap.has(field.key)) {
+        translation = translationMap.get(field.key);
+      } else {
+        const translatedFieldIndex = fieldsToTranslate.findIndex(
+          (f) => f.key === field.key && f.value === field.value,
+        );
+        translation =
+          translatedFieldIndex !== -1
+            ? batchedTranslations[translatedFieldIndex]
+            : null;
+      }
+
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       (obj as Record<string, unknown>)[key] =
-        translatedFieldIndex !== -1 && batchedTranslations[translatedFieldIndex]
-          ? batchedTranslations[translatedFieldIndex]
-          : value;
+        translation !== null ? translation : value;
     }
   });
 };
+
 /**
  * Maps fields within a data object to determine which fields are translatable based on predefined keys.
  * This function recursively explores objects and arrays to identify translatable fields.
@@ -214,11 +173,22 @@ const replaceTranslations = (
 const mapFieldsToTranslate = (
   data: unknown,
   parentType: string,
+  path: string = '',
 ): {
-  fieldsToTranslate: { key: string; value: string }[];
+  fieldsToTranslate: {
+    key: string;
+    value: string;
+    context?: string;
+    isHtml?: boolean;
+  }[];
   arrayFieldsToTranslate: { key: string; value: string | string[] }[];
 } => {
-  const fieldsToTranslate: { key: string; value: string }[] = [];
+  const fieldsToTranslate: {
+    key: string;
+    value: string;
+    context?: string;
+    isHtml?: boolean;
+  }[] = [];
   const arrayFieldsToTranslate: {
     key: string;
     value: string | string[];
@@ -233,52 +203,38 @@ const mapFieldsToTranslate = (
   Object.entries(data).forEach(([key, value]) => {
     // Handle block content arrays (like "body" field)
     if (Array.isArray(value) && isBlockContent(value)) {
-      // Process each block content in the array
-      value.forEach((block, blockIndex) => {
-        if (
-          block._type === BLOCK_CONTENT_TYPE &&
-          Array.isArray(block.children)
-        ) {
-          // Join all text from spans in this block
-          const joinedText = block.children
-            .filter(
-              (child: any) =>
-                child._type === SPAN_TYPE && typeof child.text === 'string',
-            )
-            .map((span: any) => span.text)
-            .join('');
+      // Use processBlockContent utility function to handle all block content processing
+      // Create the array path for this block content array
+      const arrayPath = path ? `${path}.${key}` : key;
 
-          if (joinedText.trim() !== '') {
-            // Generate a unique key using Sanity's uuid
-            const uniqueKey = uuid();
-
-            // Store the mapping between this key and the block location
-            blockContentMap.set(uniqueKey, {
-              fieldName: key,
-              blockIndex,
-            });
-
-            // Add to fields to translate with the unique key
-            fieldsToTranslate.push({
-              key: uniqueKey,
-              value: joinedText,
-            });
-          }
-        }
-      });
+      // Process the block content array and populate fieldsToTranslate
+      processBlockContent(value, key, arrayPath, fieldsToTranslate);
       return;
     }
+
     // Handle array fields that are marked as translatable
     if (Array.isArray(value) && translatableArrayFieldKeys.includes(key)) {
       arrayFieldsToTranslate.push({ key, value });
       return;
     }
+
     // Recursively handle objects to find nested translatable fields
     if (typeof value === 'object') {
+      // Build the current path for this nested object
+      const currentPath = path ? `${path}.${key}` : key;
+
+      // Use the utility function to process any nested block content arrays
+      processNestedBlockContent({
+        object: value as Record<string, unknown>,
+        key,
+        path,
+        fieldsToTranslate,
+      });
+
       const {
         fieldsToTranslate: nestedFieldsToTranslate,
         arrayFieldsToTranslate: nestedSpecialArrayFieldsToTranslate,
-      } = mapFieldsToTranslate(value, value?._type ?? parentType);
+      } = mapFieldsToTranslate(value, value?._type ?? parentType, currentPath);
       fieldsToTranslate.push(...nestedFieldsToTranslate);
       arrayFieldsToTranslate.push(...nestedSpecialArrayFieldsToTranslate);
       return;
@@ -294,7 +250,9 @@ const mapFieldsToTranslate = (
           : fieldDefinition.type.includes(parentType);
       // Add field to translatable list if it meets criteria
       if (isTranslatable && typeof value === 'string' && value.trim() !== '') {
-        fieldsToTranslate.push({ key, value });
+        // Create a unique key that includes the path to ensure uniqueness across multiple objects
+        const uniqueFieldKey = path ? `${path}.${key}` : key;
+        fieldsToTranslate.push({ key: uniqueFieldKey, value });
       }
     }
   });
@@ -388,6 +346,191 @@ const findLatestDocumentId = async (
   return newTranslation.value._ref;
 };
 
+/**
+ * Process items with context individually for better translation quality
+ * This will mostly handle block content header blocks
+ */
+async function processItemsWithContext(
+  itemsWithContext: {
+    key: string;
+    value: string;
+    context?: string;
+    isHtml?: boolean;
+  }[],
+  translator: deepl.Translator,
+  language: deepl.TargetLanguageCode,
+  translationMap: Map<string, string>,
+): Promise<void> {
+  for (const field of itemsWithContext) {
+    if (typeof field.value !== 'string' || field.value.trim() === '') {
+      continue;
+    }
+
+    // Handle HTML fields differently
+    if (field.isHtml) {
+      // Translate HTML with tag handling and context
+      const translations = await translator.translateText(
+        [field.value],
+        null,
+        language,
+        {
+          context: field.context,
+          tagHandling: 'html',
+        },
+      );
+
+      // Store translation in the map using the field's key (no formatting needed for HTML)
+      translationMap.set(field.key, translations[0].text);
+    } else {
+      // Handle regular text fields with context
+      const textToTranslate = {
+        original: field.value,
+        lowercased: field.value.toLowerCase(),
+        context: field.context,
+      };
+
+      // Translate with context
+      const translations = await translator.translateText(
+        [textToTranslate.original],
+        null,
+        language,
+        {
+          context: textToTranslate.context,
+        },
+      );
+
+      // Store translation in the map using the field's key
+      let translatedText = translations[0].text;
+
+      // Preserve original capitalization if the original was all lowercase
+      if (textToTranslate.lowercased === textToTranslate.original) {
+        translatedText = translatedText.toLowerCase();
+      }
+
+      // Preserve leading/trailing spaces
+      const leadingSpaces = textToTranslate.original.match(/^\s*/);
+      const trailingSpaces = textToTranslate.original.match(/\s*$/);
+      if (leadingSpaces || trailingSpaces) {
+        translatedText =
+          (leadingSpaces ? leadingSpaces[0] : '') +
+          translatedText.trim() +
+          (trailingSpaces ? trailingSpaces[0] : '');
+      }
+
+      translationMap.set(field.key, translatedText);
+    }
+  }
+}
+
+/**
+ * Process items without context in batches for efficiency
+ */
+async function processItemsWithoutContext(
+  itemsWithoutContext: {
+    key: string;
+    value: string;
+    context?: string;
+    isHtml?: boolean;
+  }[],
+  translator: deepl.Translator,
+  language: deepl.TargetLanguageCode,
+  translationMap: Map<string, string>,
+): Promise<void> {
+  // Separate HTML and regular items within this batch
+  const htmlItemsWithoutContext = itemsWithoutContext.filter(
+    (field) => field.isHtml,
+  );
+  const regularItemsWithoutContext = itemsWithoutContext.filter(
+    (field) => !field.isHtml,
+  );
+
+  // Process HTML items without context in batches
+  for (let i = 0; i < htmlItemsWithoutContext.length; i += 50) {
+    const batch = htmlItemsWithoutContext.slice(i, i + 50);
+    const htmlToTranslate = batch
+      .map((field) => ({
+        original: field.value,
+        fieldKey: field.key,
+      }))
+      .filter(
+        (item) =>
+          typeof item.original === 'string' && item.original.trim() !== '',
+      );
+
+    if (htmlToTranslate.length === 0) {
+      continue;
+    }
+
+    // Translate HTML with tag handling
+    const translations = await translator.translateText(
+      htmlToTranslate.map((item) => item.original),
+      null,
+      language,
+      {
+        tagHandling: 'html',
+      },
+    );
+
+    // Map each translation back to its original field key
+    translations.forEach((translation, index) => {
+      const item = htmlToTranslate[index];
+      // Store in the map using the field's key (no formatting needed for HTML)
+      translationMap.set(item.fieldKey, translation.text);
+    });
+  }
+
+  // Process regular items without context in batches for efficiency
+  for (let i = 0; i < regularItemsWithoutContext.length; i += 50) {
+    const batch = regularItemsWithoutContext.slice(i, i + 50);
+    const textToTranslate = batch
+      .map((field, idx) => ({
+        original: field.value,
+        lowercased:
+          typeof field.value === 'string'
+            ? field.value.toLowerCase()
+            : field.value,
+        fieldKey: field.key, // Track the original field key
+        batchIndex: idx, // Track position in this batch
+      }))
+      .filter(
+        (item) =>
+          typeof item.lowercased === 'string' && item.lowercased.trim() !== '',
+      );
+
+    if (textToTranslate.length === 0) {
+      continue;
+    }
+
+    const translations = await translator.translateText(
+      textToTranslate.map((item) =>
+        item.original === item.original.toUpperCase()
+          ? item.lowercased
+          : item.original,
+      ),
+      null,
+      language,
+    );
+
+    // Map each translation back to its original field key
+    translations.forEach((translation, index) => {
+      const item = textToTranslate[index];
+      const originalText = item.original;
+      const leadingSpace = originalText.startsWith(' ') ? ' ' : '';
+      const trailingSpace = originalText.endsWith(' ') ? ' ' : '';
+      const adjustedTranslation =
+        leadingSpace + translation.text + trailingSpace;
+
+      const formattedTranslation =
+        originalText === originalText.toUpperCase()
+          ? adjustedTranslation.toUpperCase()
+          : adjustedTranslation;
+
+      // Store in the map using the field's key
+      translationMap.set(item.fieldKey, formattedTranslation);
+    });
+  }
+}
+
 async function translateJSONData(
   jsonData: SanityDocumentLike & {
     language?: string;
@@ -399,6 +542,9 @@ async function translateJSONData(
   language: deepl.TargetLanguageCode,
   deeplApiKey: string,
 ) {
+  // Clear the block content map at the start of each translation operation
+  clearBlockContentMap();
+
   const authKey = deeplApiKey;
   if (!authKey) {
     throw new Error('No API key found');
@@ -407,8 +553,10 @@ async function translateJSONData(
   const { fieldsToTranslate, arrayFieldsToTranslate } = mapFieldsToTranslate(
     jsonData,
     jsonData._type,
+    '', // Start with an empty path for the root object
   );
 
+  // Process fields to translate
   const translator = new deepl.Translator(authKey);
   const uniqueFieldsToTranslate = [...new Set(fieldsToTranslate)];
   const uniqueSpecialArrayFieldsToTranslate = [
@@ -436,60 +584,48 @@ async function translateJSONData(
     });
   }
 
-  const batchedTranslations: string[] = [];
-  for (let i = 0; i < uniqueFieldsToTranslate.length; i += 50) {
-    const batch = uniqueFieldsToTranslate.slice(i, i + 50);
-    const textToTranslate = batch
-      .map((field) => ({
-        original: field.value,
-        lowercased:
-          typeof field.value === 'string'
-            ? field.value.toLowerCase()
-            : field.value,
-      }))
-      .filter(
-        (item) =>
-          typeof item.lowercased === 'string' && item.lowercased.trim() !== '',
-      );
+  // Create a translation map keyed by unique field keys instead of using array indices
+  const translationMap = new Map<string, string>();
 
-    const translations = await translator.translateText(
-      textToTranslate.map((item) =>
-        item.original === item.original.toUpperCase()
-          ? item.lowercased
-          : item.original,
-      ),
-      null,
-      language,
-      // eslint-disable-next-line no-warning-comments
-      // TODO: Add context to the headers using the next object if it it just a regular text as a context
-      // {
-      //   context: ''
-      // }
-    );
+  // Separate by context first (maintaining original efficient structure)
+  const itemsWithContext = uniqueFieldsToTranslate.filter(
+    (field) => field.context,
+  );
+  const itemsWithoutContext = uniqueFieldsToTranslate.filter(
+    (field) => !field.context,
+  );
 
-    const formattedTranslations = translations.map((translation, index) => {
-      const originalText = textToTranslate[index].original;
-      const leadingSpace = originalText.startsWith(' ') ? ' ' : '';
-      const trailingSpace = originalText.endsWith(' ') ? ' ' : '';
-      const adjustedTranslation =
-        leadingSpace + translation.text + trailingSpace;
-      return originalText === originalText.toUpperCase()
-        ? adjustedTranslation.toUpperCase()
-        : adjustedTranslation;
-    });
+  // Process items with context individually to provide specific context for each header
+  await processItemsWithContext(
+    itemsWithContext,
+    translator,
+    language,
+    translationMap,
+  );
 
-    batchedTranslations.push(...formattedTranslations);
-  }
+  // Process items without context in batches for efficiency
+  await processItemsWithoutContext(
+    itemsWithoutContext,
+    translator,
+    language,
+    translationMap,
+  );
+
+  // Create a batchedTranslations array for backward compatibility
+  const batchedTranslations = uniqueFieldsToTranslate.map(
+    (field) => translationMap.get(field.key) || '',
+  );
 
   const translatedJsonData = jsonData;
 
-  replaceTranslations(
-    translatedJsonData,
+  replaceTranslations({
+    obj: translatedJsonData,
     batchedArrayFieldTranslations,
     batchedTranslations,
     fieldsToTranslate,
-    uniqueFieldsToTranslate,
-  );
+    translationMap,
+    path: '', // Start with empty path
+  });
 
   return { translatedJsonData, batchedTranslations };
 }
