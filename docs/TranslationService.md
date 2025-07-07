@@ -44,11 +44,22 @@ The `TranslationService` is a core component of the Sanity plugin for translatio
 
 2. **Reference Processing**: Any references within the document are processed to maintain proper linking across language versions.
 
-3. **Field Mapping**: The service maps all translatable fields in the document, including nested objects and arrays.
+3. **Field Mapping**: The service maps all translatable fields in the document, including nested objects and arrays. During this phase:
+   - **Regular Fields**: Simple text fields are collected with their paths
+   - **Block Content Detection**: Arrays containing Sanity block content are identified
+   - **Complexity Analysis**: Block content is analyzed to determine if HTML-based translation is needed
+   - **Context Enhancement**: Header blocks receive context from subsequent blocks for better translation quality
 
-4. **Translation**: Text is sent to the DeepL API in batches (50 items per batch) for translation.
+4. **Translation**: Content is sent to the DeepL API using different approaches based on content type:
+   - **HTML-Based Translation**: Complex blocks with marks/markDefs are converted to HTML and translated with `tag_handling=html` to preserve formatting
+   - **Context-Based Translation**: Header blocks are translated with context from subsequent blocks
+   - **Batch Translation**: Regular fields are translated in batches (50 items per batch) for efficiency
+   - **Array Field Translation**: Special array fields (e.g., keywords) are handled separately
 
-5. **Format Preservation**: The service preserves spaces, capitalization, and other formatting during translation.
+5. **Translation Application**: Different strategies are used to apply translations:
+   - **HTML Parsing**: Translated HTML is parsed back to block structure with preserved marks/markDefs
+   - **Direct Text Replacement**: Simple text translations are applied directly to their fields
+   - **Format Preservation**: Spaces, capitalization, and other formatting are preserved
 
 6. **Document Update**: The translated document is updated in Sanity with the new translations.
 
@@ -57,21 +68,68 @@ The `TranslationService` is a core component of the Sanity plugin for translatio
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │                 │     │                 │     │                 │
-│  Document       │────▶│  Reference      │────▶│  Field          │
+│  Document       │────▶│  Reference     │────▶│  Field          │
 │  Identification │     │  Processing     │     │  Mapping        │
 │                 │     │                 │     │                 │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
                                                         │
                                                         ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│                 │     │                 │     │                 │
-│  Document       │◀────│  Format         │◀────│  Translation    │
-│  Update         │     │  Preservation   │     │  via DeepL      │
-│                 │     │                 │     │                 │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
+                        ┌─────────────────────────────────────────────────┐
+                        │                                                 │
+                        │             Content Type Analysis               │
+                        │                                                 │
+                        └─────────────────────────────────────────────────┘
+                                 │                 │                 │
+                                 ▼                 ▼                 ▼
+┌───────────────────────┐ ┌───────────────────────┐ ┌───────────────────────┐
+│                       │ │                       │ │                       │
+│  Regular Field        │ │  Block Content        │ │  Array Field          │
+│  Translation          │ │  Translation          │ │  Translation          │
+│  (Batch Processing)   │ │  (HTML/Context)       │ │  (e.g., keywords)     │
+│                       │ │                       │ │                       │
+└───────────────────────┘ └───────────────────────┘ └───────────────────────┘
+          │                         │                         │
+          └─────────────────────────┼─────────────────────────┘
+                                    │
+                                    ▼
+                        ┌─────────────────────────┐
+                        │                         │
+                        │      DeepL API          │
+                        │      Processing         │
+                        │                         │
+                        └─────────────────────────┘
+                                    │
+                                    ▼
+                        ┌─────────────────────────┐
+                        │                         │
+                        │      Translation        │
+                        │      Application        │
+                        │                         │
+                        └─────────────────────────┘
+                                    │
+                                    ▼
+                        ┌─────────────────────────┐
+                        │                         │
+                        │      Document           │
+                        │      Update             │
+                        │                         │
+                        └─────────────────────────┘
 ```
 
-During the Field Mapping phase, special handling is applied to block content arrays, which follows its own sub-process (see [BlockContentProcessing.md](./BlockContentProcessing.md) for details).
+### Translation Approaches
+
+The TranslationService employs multiple specialized approaches to handle different content types:
+
+1. **Regular Fields**: Simple text fields are batched and translated directly.
+
+2. **Block Content**: Rich text follows a specialized process:
+   - **Simple Blocks**: Blocks without marks are translated as plain text
+   - **Complex Blocks**: Blocks with marks/markDefs are converted to HTML, translated with tag preservation, and parsed back to block structure
+   - **Header Blocks**: Receive context from subsequent blocks for improved translation quality
+   
+3. **Array Fields**: Special handling for array fields like keywords.
+
+For detailed information on block content processing, see [BlockContentProcessing.md](./BlockContentProcessing.md).
 
 ## Configuration
 

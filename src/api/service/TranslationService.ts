@@ -444,9 +444,6 @@ async function processItemsWithoutContext(
     (field) => !field.isHtml,
   );
 
-  // console.log('htmlItemsWithoutContext', htmlItemsWithoutContext);
-  // console.log('regularItemsWithoutContext', regularItemsWithoutContext);
-
   // Process HTML items without context in batches
   for (let i = 0; i < htmlItemsWithoutContext.length; i += 50) {
     const batch = htmlItemsWithoutContext.slice(i, i + 50);
@@ -597,9 +594,6 @@ async function translateJSONData(
   const itemsWithoutContext = uniqueFieldsToTranslate.filter(
     (field) => !field.context,
   );
-
-  // console.log('itemsWithContext', itemsWithContext);
-  // console.log('itemsWithoutContext', itemsWithoutContext);
 
   // Process items with context individually to provide specific context for each header
   await processItemsWithContext(

@@ -159,13 +159,47 @@ export interface BlockContentMapItem {
 
 The block content processing follows these main steps:
 
-1. **Detection**: Identify arrays that contain Sanity block content
-2. **Complexity Analysis**: Determine if blocks need HTML-based translation
-3. **Extraction**: Extract text from spans within each block (or convert to HTML for complex blocks)
-4. **Context Enhancement**: For header blocks, find and attach context from subsequent normal blocks
-5. **Mapping**: Create a mapping between unique keys and block locations
-6. **Translation**: Send extracted text (or HTML) for translation
-7. **Application**: Apply translations back to the original structure (parsing HTML back to blocks if needed)
+1. **Detection**: 
+   - Identify arrays that contain Sanity block content using `isBlockContent()`
+   - Distinguish between regular arrays and Portable Text block content arrays
+   - Detect nested block content within objects
+
+2. **Complexity Analysis**: 
+   - Analyze blocks using `shouldUseHtmlForBlock()` to determine translation approach
+   - Check for marks, markDefs, and multiple children that require HTML-based translation
+   - Identify simple blocks that can be translated as plain text
+
+3. **Extraction**: 
+   - **HTML Approach**: Convert complex blocks to HTML using `convertBlockToHtml()` with tag preservation
+   - **Text Approach**: Extract text directly from simple blocks' spans
+   - Preserve original structure, keys, and formatting information
+
+4. **Context Enhancement**: 
+   - For header blocks (h1-h6), find context from subsequent normal blocks using `findContextForHeaderBlock()`
+   - Store context in the global `blockContentMap` for improved translation quality
+   - Apply context rules based on header level and proximity
+
+5. **Mapping**: 
+   - Generate unique keys for each block using UUID or path-based approaches
+   - Create detailed mapping in `blockContentMap` with:
+     - Original block reference
+     - Block location (path)
+     - Block type and style
+     - HTML flag for complex blocks
+     - Context for header blocks
+     - Original keys for restoration
+
+6. **Translation**: 
+   - **HTML Translation**: Send HTML to DeepL with `tag_handling=html` parameter
+   - **Context-Based Translation**: Send header text with context for better quality
+   - **Batch Translation**: Group translations for efficiency
+   - Preserve formatting, spaces, and capitalization
+
+7. **Application**: 
+   - **HTML Parsing**: For complex blocks, parse translated HTML back to block structure using `parseHtmlToBlockStructure()`
+   - **Direct Replacement**: For simple blocks, apply translations directly to spans
+   - **Structure Restoration**: Reconstruct blocks with original keys, styles, and markDefs
+   - **Mark Preservation**: Ensure all formatting (bold, italic, links) is preserved
 
 ### Detailed Flow
 
@@ -235,10 +269,10 @@ The block content processing follows these main steps:
         ▼
 ┌─────────────────┐                           ┌─────────────────┐
 │                 │                           │                 │
-│  Apply Text     │◀─────────────────────────│  Response        │
-│  Translations   │                           │  Analysis       │────┐
-│                 │                           │                 │    │
-└─────────────────┘                           └─────────────────┘    │
+│  Apply Text     │◀─────────────────────────│  Response       │
+│  Translations   │                           │  Analysis       │───┐
+│                 │                           │                 │   │
+└─────────────────┘                           └─────────────────┘   │
                                                       │             │
                                                       ▼             │
                                               ┌─────────────────┐   │

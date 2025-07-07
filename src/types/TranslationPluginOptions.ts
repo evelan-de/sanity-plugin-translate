@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Define the Zod schema for MediaVideoPluginOptions
+// Define the Zod schema for translatePluginOptionsSchema
 export const translatePluginOptionsSchema = z.object({
   BASE_URL: z.string().optional(),
   includeTranslateAction: z.boolean().optional(), // Optional property to control the inclusion of TranslateAction
