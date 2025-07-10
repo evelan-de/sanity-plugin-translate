@@ -171,6 +171,11 @@ export const parseHtmlToSpans = (html: string): any[] => {
   const parser = new htmlparser2.Parser(
     {
       onopentag(name, attributes) {
+        // Special handling for <br> tags - convert to newline character
+        if (name === 'br') {
+          currentText += '\n';
+          return;
+        }
         // If we have accumulated text, create a span before changing marks
         if (currentText) {
           createSpan();
@@ -190,6 +195,10 @@ export const parseHtmlToSpans = (html: string): any[] => {
         currentText += text;
       },
       onclosetag(name) {
+        // Skip <br> tags as they're handled in onopentag
+        if (name === 'br') {
+          return;
+        }
         // Create a span with the accumulated text
         createSpan();
 
