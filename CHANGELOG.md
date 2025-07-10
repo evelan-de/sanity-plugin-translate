@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.12.1](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.12.0...v1.12.1) (2025-07-10)
+
+### Bug Fixes
+
+- preserve newlines in block content translation ([ca0cfa4](https://github.com/evelan-de/sanity-plugin-translate/commit/ca0cfa495fd4ceedaebe3b0afadb04eaf97cdc86))
+
 ## [1.12.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.11.0...v1.12.0) (2025-07-07)
 
 ### Features
