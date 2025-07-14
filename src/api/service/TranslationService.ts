@@ -9,6 +9,7 @@ import {
   TranslationServiceOptions,
 } from '../../types/translationApi';
 import { processPromisesInChunks } from '../../utils/promiseUtils';
+import { MEDIA_OBJECTS } from '../consts';
 import {
   loadDocumentData,
   loadDocumentTranslationsAndReplace,
@@ -23,40 +24,10 @@ import {
   processBlockContent,
   processNestedBlockContent,
 } from '../utils/blockContentUtils';
-
-// add here the string type keys that need to be translated
-const translatableFieldKeys = [
-  'altText',
-  'label',
-  'text', // Usually this is the field name that comes from the Block Content structure that is part from "children"
-  'title',
-  'seoTitle',
-  'description',
-  'subline',
-  'caption',
-  'emailSubject',
-  'isRequiredErrorMessage',
-  'errorTitle',
-  'actionButtonLabel',
-  'placeholder',
-  'featHeader',
-  'conHeader',
-  'proHeader',
-  'faqHeader',
-  'teaser',
-  'supportingText', // For the Testimonial stats (in Multi-card layout)
-  { type: ['form', 'pageCategory', 'category'], key: 'name' },
-];
-
-const mediaObjects = [
-  'media',
-  'icon',
-  'mainImage',
-  'sanityIcon',
-  'productImage',
-];
-// add here the array type keys that need to be translated
-const translatableArrayFieldKeys = ['keywords'];
+import {
+  getMergedTranslatableArrayFieldKeys,
+  getMergedTranslatableFieldKeys,
+} from '../utils/fieldKeyManager';
 
 /**
  * Replaces translations in the given object based on the provided translation mappings.
@@ -77,6 +48,7 @@ type ReplaceTranslationsParams = {
   fieldsToTranslate: { key: string; value: string; context?: string }[];
   translationMap?: Map<string, string>;
   path?: string; // Make path optional with default value
+  translatableArrayFieldKeys: string[];
 };
 
 const replaceTranslations = ({
@@ -86,6 +58,7 @@ const replaceTranslations = ({
   fieldsToTranslate,
   translationMap,
   path = '', // Default to empty path
+  translatableArrayFieldKeys,
 }: ReplaceTranslationsParams): void => {
   if (!(typeof obj === 'object' && obj !== null)) {
     return;
@@ -128,6 +101,7 @@ const replaceTranslations = ({
         fieldsToTranslate,
         translationMap,
         path: currentPath, // Pass the current path to nested calls
+        translatableArrayFieldKeys,
       });
       return;
     }
@@ -174,6 +148,8 @@ const mapFieldsToTranslate = (
   data: unknown,
   parentType: string,
   path: string = '',
+  translatableFieldKeys: (string | { type: string[]; key: string })[],
+  translatableArrayFieldKeys: string[],
 ): {
   fieldsToTranslate: {
     key: string;
@@ -234,7 +210,13 @@ const mapFieldsToTranslate = (
       const {
         fieldsToTranslate: nestedFieldsToTranslate,
         arrayFieldsToTranslate: nestedSpecialArrayFieldsToTranslate,
-      } = mapFieldsToTranslate(value, value?._type ?? parentType, currentPath);
+      } = mapFieldsToTranslate(
+        value,
+        value?._type ?? parentType,
+        currentPath,
+        translatableFieldKeys,
+        translatableArrayFieldKeys,
+      );
       fieldsToTranslate.push(...nestedFieldsToTranslate);
       arrayFieldsToTranslate.push(...nestedSpecialArrayFieldsToTranslate);
       return;
@@ -541,6 +523,8 @@ async function translateJSONData(
   },
   language: deepl.TargetLanguageCode,
   deeplApiKey: string,
+  translatableFieldKeys: (string | { type: string[]; key: string })[],
+  translatableArrayFieldKeys: string[],
 ) {
   // Clear the block content map at the start of each translation operation
   clearBlockContentMap();
@@ -554,6 +538,8 @@ async function translateJSONData(
     jsonData,
     jsonData._type,
     '', // Start with an empty path for the root object
+    translatableFieldKeys,
+    translatableArrayFieldKeys,
   );
 
   // Process fields to translate
@@ -625,6 +611,7 @@ async function translateJSONData(
     fieldsToTranslate,
     translationMap,
     path: '', // Start with empty path
+    translatableArrayFieldKeys,
   });
 
   return { translatedJsonData, batchedTranslations };
@@ -742,7 +729,7 @@ const mapFieldsToCopy = (
     const currentXPath = xPath ? `${xPath}/${key}` : key;
 
     // Handle media objects
-    if (mediaObjects.includes(key) && typeof value === 'object') {
+    if (MEDIA_OBJECTS.includes(key) && typeof value === 'object') {
       mediaObjectsToCopy.push({ key, value, parentId, xPath: currentXPath });
       return;
     }
@@ -850,11 +837,21 @@ export class TranslationService {
   private client: SanityClient;
   private previewClient?: SanityClient;
   private deeplApiKey: string;
+  private translatableFieldKeys: (string | { type: string[]; key: string })[];
+  private translatableArrayFieldKeys: string[];
 
   constructor(config: TranslationServiceOptions) {
     this.client = config.client;
     this.previewClient = config.previewClient;
     this.deeplApiKey = config.deeplApiKey;
+
+    // Initialize field keys using the configuration
+    this.translatableFieldKeys = getMergedTranslatableFieldKeys(
+      config.fieldKeyConfig,
+    );
+    this.translatableArrayFieldKeys = getMergedTranslatableArrayFieldKeys(
+      config.fieldKeyConfig,
+    );
   }
 
   public async syncDocumentMedia({
@@ -1013,6 +1010,8 @@ export class TranslationService {
           processedDocumentData, // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
           documentLanguage as deepl.TargetLanguageCode,
           this.deeplApiKey,
+          this.translatableFieldKeys,
+          this.translatableArrayFieldKeys,
         );
         const {
           _id,
@@ -1098,6 +1097,8 @@ export class TranslationService {
       processedDocumentData, // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       language as deepl.TargetLanguageCode,
       this.deeplApiKey,
+      this.translatableFieldKeys,
+      this.translatableArrayFieldKeys,
     );
 
     await this.client

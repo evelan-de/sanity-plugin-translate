@@ -7,6 +7,7 @@ This Sanity plugin leverages the DeepL API to provide translation capabilities w
 - **Translation Integration**: Utilizes the `deepl-node` library to integrate with the DeepL API for robust translation capabilities.
 - **Document Actions**: Includes actions for translating documents and fixing references within the Sanity Studio.
 - **Configurable**: Supports configuration for different environments with customizable plugin options.
+- **Customizable Field Keys**: Define which fields should be translated with support for custom field keys, type-specific fields, and exclusions via the TranslationService API.
 
 ## Installation
 
@@ -24,30 +25,173 @@ This Sanity plugin leverages the DeepL API to provide translation capabilities w
 
 To configure the plugin, you need to specify the DeepL API key and other optional settings in your Sanity Studio configuration file:
 
-```
-   import { TranslationPlugin } from 'sanity-plugin-translate';
+```javascript
+import { TranslationPlugin } from 'sanity-plugin-translate';
 
-   export default createConfig({
-      // Your existing Sanity configuration
-      ...,
-      plugins: [
-         TranslationPlugin({
-            BASE_URL: 'https://api.deepl.com',
-            deeplApiKey: 'your-deepl-api-key'
-            includeFixReferenceAction: boolean,
-            includeTranslateAction: boolean,
-         })
-      ]
-   });
+export default createConfig({
+   // Your existing Sanity configuration
+   ...,
+   plugins: [
+      TranslationPlugin({
+         BASE_URL: 'https://my-domain.com', // Or your API endpoint
+         deeplApiKey: 'your-deepl-api-key',
+         includeFixReferenceAction: true,
+         includeTranslateAction: true,
+         includeSyncDocumentsAction: true, // Optional
+         includeSyncDocumentMediaAction: true, // Optional
+      })
+   ]
+});
 ```
 
 ## Usage
 
-After installation, the translation actions can be triggered from the document actions dropdown in the Sanity Studio. Ensure you have the necessary API keys and configurations set up as described in the plugin documentation.
+After installation, you need to set up two components:
+
+1. **Configure the plugin in your Sanity Studio** to add document actions
+2. **Create API routes in your project** to handle the translation requests
+
+### Setting Up API Routes
+
+**Important**: This plugin requires you to create API routes in your project to handle translation requests. The document actions in Sanity Studio will send requests to these API endpoints.
+
+You'll need to create the following API routes in your project:
+
+- `/api/translate` - For document translation
+- `/api/fix-references` - For fixing document references
+- `/api/sync-documents` - For synchronizing documents (if enabled)
+- `/api/sync-media-documents` - For synchronizing media objects (if enabled)
+
+#### Next.js API Route Example
+
+Here's an example of a Next.js App Router API route for translation (`app/api/translate/route.ts`):
+
+```typescript
+import { type NextRequest } from 'next/server';
+import { TranslationService } from 'sanity-plugin-translate/service';
+import { translationApiRequestBody } from 'sanity-plugin-translate/types';
+import { createClient } from '@sanity/client';
+
+export const maxDuration = 360;
+export const dynamic = 'force-dynamic';
+
+export async function POST(req: NextRequest) {
+  // Verify webhook secret for security
+  const webhook_secret = req.headers.get('x-webhook-secret');
+  if (
+    !webhook_secret ||
+    webhook_secret !== process.env.SANITY_TRANSLATE_WEBHOOK_SECRET
+  ) {
+    return new Response('Invalid webhook secret', { status: 401 });
+  }
+
+  // Parse and validate request body
+  const body = await req.json();
+  const parsedBody = translationApiRequestBody.safeParse(body);
+  if (!parsedBody.success) {
+    return new Response('Invalid body', { status: 400 });
+  }
+
+  const data = parsedBody.data;
+
+  // Check for DeepL API key
+  if (!process.env.DEEPL_API_KEY) {
+    return new Response('Missing DEEPL_API_KEY', { status: 400 });
+  }
+
+  // Create Sanity client
+  const client = createClient({
+    projectId: process.env.SANITY_PROJECT_ID || '',
+    dataset: process.env.SANITY_DATASET || '',
+    token: process.env.SANITY_TOKEN,
+    useCdn: false,
+  });
+
+  // Initialize TranslationService
+  const translator = new TranslationService({
+    client,
+    deeplApiKey: process.env.DEEPL_API_KEY,
+  });
+
+  try {
+    // Translate the document
+    const { translatedJsonData, isTranslated } = await translator.translateDocument({
+      data,
+    });
+
+    return new Response(
+      JSON.stringify({
+        isTranslated,
+        translatedTexts: translatedJsonData,
+      }),
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error('Translation error:', err);
+    return new Response('Internal Server Error', { status: 500 });
+  }
+}
+```
+
+You'll need to create similar routes for other actions (`fix-references`, `sync-documents`, `sync-media-documents`) using the appropriate TranslationService methods.
+
+> **Note**: While this example uses Next.js, you can adapt it for other Node.js frameworks like Express, Fastify, or NestJS. The core logic remains the same - receive requests from Sanity Studio, process them with TranslationService, and return the results.
+
+### Required Environment Variables
+
+- `DEEPL_API_KEY`: Your DeepL API key
+- `SANITY_TRANSLATE_WEBHOOK_SECRET`: A secret to secure your API endpoints
+- `SANITY_PROJECT_ID`: Your Sanity project ID
+- `SANITY_DATASET`: Your Sanity dataset name
+- `SANITY_TOKEN`: A Sanity token with write permissions
 
 ### Translating a Document
 
-You can translate documents by selecting the "Translate Document" action from the document action dropdown. This action uses the DeepL API to translate the text fields of the document to the specified language.
+Once your API routes are set up, you can translate documents by selecting the "Translate Document" action from the document action dropdown in Sanity Studio. This action will send a request to your API endpoint, which will use the DeepL API to translate the text fields of the document.
+
+### Customizing Translatable Fields
+
+The plugin allows you to customize which fields are considered translatable by configuring the `TranslationService` in your API route:
+
+```typescript
+// In your API route that handles translation requests (e.g., app/api/translate/route.ts)
+import { TranslationService } from 'sanity-plugin-translate/service';
+import { FieldKeyConfig } from 'sanity-plugin-translate/types';
+import { createClient } from '@sanity/client';
+
+// Define your custom field keys
+const fieldKeyConfig: FieldKeyConfig = {
+  // Add custom field keys to translate
+  customTranslatableFieldKeys: [
+    'summary',
+    { type: ['product'], key: 'specifications' } // Type-specific field
+  ],
+  // Add custom array field keys to translate
+  customTranslatableArrayFieldKeys: ['tags'],
+  // Exclude specific default field keys
+  excludeDefaultFieldKeys: ['placeholder'],
+  excludeDefaultArrayFieldKeys: [],
+};
+
+// Create Sanity client
+const client = createClient({
+  projectId: process.env.SANITY_PROJECT_ID,
+  dataset: process.env.SANITY_DATASET,
+  token: process.env.SANITY_TOKEN,
+  useCdn: false,
+});
+
+// Use the TranslationService with custom field keys
+const translationService = new TranslationService({
+  client,
+  deeplApiKey: process.env.DEEPL_API_KEY,
+  fieldKeyConfig, // Pass your custom field key configuration here
+});
+```
+
+For detailed documentation on customizable field keys and integration, see:
+- [Customizable Field Keys](./docs/CustomizableFieldKeys.md)
+- [Integrating Custom Field Keys](./docs/IntegratingCustomFieldKeys.md)
 
 ### Fixing References
 
