@@ -1,1 +1,4 @@
-export { translationApiRequestBody } from '../../types/translationApi';
+export {
+  type FieldKeyConfig,
+  translationApiRequestBody,
+} from '../../types/translationApi';

@@ -1,10 +1,19 @@
 import { SanityClient } from 'sanity';
 import { z } from 'zod';
 
+// Field key configuration interface
+export interface FieldKeyConfig {
+  customTranslatableFieldKeys?: (string | { type: string[]; key: string })[];
+  customTranslatableArrayFieldKeys?: string[];
+  excludeDefaultFieldKeys?: string[];
+  excludeDefaultArrayFieldKeys?: string[];
+}
+
 export interface TranslationServiceOptions {
   client: SanityClient;
   previewClient?: SanityClient;
   deeplApiKey: string;
+  fieldKeyConfig?: FieldKeyConfig;
 }
 
 export const documentComparisonMetadata = z.object({
