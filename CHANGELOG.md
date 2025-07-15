@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.13.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.12.1...v1.13.0) (2025-07-15)
+
+### Features
+
+- implement customizable translatable field keys ([b7ad9a0](https://github.com/evelan-de/sanity-plugin-translate/commit/b7ad9a0719c11b6caede2627dca7949dc1128eb7))
+
 ## [1.12.1](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.12.0...v1.12.1) (2025-07-10)
 
 ### Bug Fixes
