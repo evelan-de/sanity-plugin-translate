@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.13.1](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.13.0...v1.13.1) (2025-07-16)
+
+### Bug Fixes
+
+- fix mark handling in HTML conversion and preserve whitespace ([324fad2](https://github.com/evelan-de/sanity-plugin-translate/commit/324fad2f59a7cf3c27ec936dde0b54f3a11903f2))
+
 ## [1.13.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.12.1...v1.13.0) (2025-07-15)
 
 ### Features
