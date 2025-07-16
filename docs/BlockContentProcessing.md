@@ -442,15 +442,23 @@ export const parseHtmlToSpans = (html: string): any[] => {
   // Track current text and marks
   let currentText = '';
   const currentMarks: string[] = [];
+  
+  // Track tag stack to ensure proper mark handling
+  const tagStack: { name: string; markAdded?: string }[] = [];
 
   // Function to create a span with the current text and marks
   const createSpan = () => {
-    if (currentText.trim()) {
+    // Important: Create spans even for whitespace-only text
+    // This preserves spaces between marked spans
+    if (currentText) {
+      // Deduplicate marks to prevent duplicate formatting
+      const uniqueMarks = [...new Set(currentMarks)];
+      
       spans.push({
         _type: SPAN_TYPE,
         _key: uuid(),
         text: currentText,
-        marks: [...currentMarks], // Create a copy to avoid reference issues
+        marks: uniqueMarks, // Use deduplicated marks
       });
     }
     currentText = '';
@@ -466,50 +474,40 @@ export const parseHtmlToSpans = (html: string): any[] => {
         }
 
         // Add mark based on tag type
+        let markAdded: string | undefined;
         if (name === 'a' && attributes['data-markdef-key']) {
-          currentMarks.push(attributes['data-markdef-key']);
+          markAdded = attributes['data-markdef-key'];
+          currentMarks.push(markAdded);
         } else if (name === 'span' && attributes['data-mark']) {
-          currentMarks.push(attributes['data-mark']);
+          markAdded = attributes['data-mark'];
+          currentMarks.push(markAdded);
         } else if (HTML_TO_MARK_MAP[name]) {
-          currentMarks.push(HTML_TO_MARK_MAP[name]);
+          markAdded = HTML_TO_MARK_MAP[name];
+          currentMarks.push(markAdded);
         }
+
+        // Push the tag onto the stack with the mark it added (if any)
+        tagStack.push({ name, markAdded });
       },
       ontext(text) {
         // Add text to current accumulation
         currentText += text;
       },
       onclosetag(name) {
+        // Skip <br> tags as they're handled in onopentag
+        if (name === 'br') {
+          return;
+        }
+        
         // Create a span with the accumulated text
         createSpan();
 
-        // Remove the mark associated with this tag
-        if (name === 'a' || name === 'span' || HTML_TO_MARK_MAP[name]) {
-          // Find the mark to remove
-          let markToRemove: string | undefined;
-
-          if (name === 'a') {
-            // Find any markDef key in the marks array
-            markToRemove = currentMarks.find(
-              (mark) =>
-                !Object.values(HTML_TO_MARK_MAP).includes(mark) &&
-                !mark.startsWith('primary') &&
-                !mark.startsWith('secondary'),
-            );
-          } else if (name === 'span') {
-            // Find any custom mark (primary/secondary)
-            markToRemove = currentMarks.find(
-              (mark) => mark === 'primary' || mark === 'secondary',
-            );
-          } else if (HTML_TO_MARK_MAP[name]) {
-            // Find the standard HTML mark
-            markToRemove = HTML_TO_MARK_MAP[name];
-          }
-
-          if (markToRemove) {
-            const index = currentMarks.indexOf(markToRemove);
-            if (index !== -1) {
-              currentMarks.splice(index, 1);
-            }
+        // Pop the tag from the stack and remove its mark if it added one
+        const poppedTag = tagStack.pop();
+        if (poppedTag && poppedTag.markAdded) {
+          const index = currentMarks.indexOf(poppedTag.markAdded);
+          if (index !== -1) {
+            currentMarks.splice(index, 1);
           }
         }
       },
@@ -521,30 +519,28 @@ export const parseHtmlToSpans = (html: string): any[] => {
   parser.write(html);
   parser.end();
 
-  // Create the final span if there's any remaining text
+  // Create a final span if there's any text left
   if (currentText) {
     createSpan();
   }
 
   // Merge consecutive spans with the same marks
-  return spans
-    .filter((span) => span.text.trim())
-    .reduce((merged: any[], current: any) => {
-      if (merged.length === 0) {
-        return [current];
-      }
+  return spans.reduce((merged: any[], current: any) => {
+    if (merged.length === 0) {
+      return [current];
+    }
 
-      const previous = merged[merged.length - 1];
-      const haveSameMarks =
-        JSON.stringify(previous.marks) === JSON.stringify(current.marks);
+    const previous = merged[merged.length - 1];
+    const haveSameMarks =
+      JSON.stringify(previous.marks) === JSON.stringify(current.marks);
 
-      if (haveSameMarks) {
-        previous.text += current.text;
-        return merged;
-      }
+    if (haveSameMarks) {
+      previous.text += current.text;
+      return merged;
+    }
 
-      return [...merged, current];
-    }, []);
+    return [...merged, current];
+  }, []);
 };
 ```
 
@@ -1009,6 +1005,16 @@ if (Array.isArray(value) && translationMap) {
 
 **Challenge**: Preserving formatting (bold, italic, etc.) through translation  
 **Solution**: Convert complex blocks to HTML with appropriate tags before translation
+
+### Mark Stacking and Duplication
+
+**Challenge**: Preventing duplicate marks and ensuring correct mark assignment when tags are nested  
+**Solution**: Implement tag stack tracking to associate marks with specific tags and deduplicate marks before span creation
+
+### Whitespace Preservation
+
+**Challenge**: Maintaining spaces between spans during round-trip conversion  
+**Solution**: Preserve whitespace-only spans by removing the trim check in span creation and the filter that removes whitespace-only spans
 
 ### MarkDef References
 
