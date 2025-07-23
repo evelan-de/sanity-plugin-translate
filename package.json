@@ -1,6 +1,6 @@
 {
   "name": "sanity-plugin-translate",
-  "version": "1.13.1",
+  "version": "1.13.2",
   "description": "A sanity plugin for the implementation of deepl api",
   "keywords": [
     "sanity",
