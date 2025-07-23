@@ -26,6 +26,7 @@ export const DEFAULT_TRANSLATABLE_FIELD_KEYS = [
   'proHeader',
   'faqHeader',
   'teaser',
+  'jobTitle',
   'supportingText', // For the Testimonial stats (in Multi-card layout)
   'statNumber', // For the Testimonial stats (in Multi-card layout)
   { type: ['form', 'pageCategory', 'category'], key: 'name' },

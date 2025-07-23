@@ -189,6 +189,11 @@ export const applyBlockContentTranslations = (
 ): void => {
   const { value, key, currentArrayPath, translationMap } = params;
 
+  // Skip if value is not an array
+  if (!Array.isArray(value)) {
+    return;
+  }
+
   // Find all translations for this array path
   const relevantKeys = Array.from(blockContentMap.keys()).filter((mapKey) => {
     const item = blockContentMap.get(mapKey);
@@ -223,7 +228,11 @@ export const applyBlockContentTranslations = (
 
   // Apply translations to each block
   value.forEach((block: any, blockIndex: number) => {
-    if (block._type !== BLOCK_CONTENT_TYPE) return;
+    // Skip null or undefined blocks
+    if (!block) return;
+
+    // Skip blocks without a _type property
+    if (typeof block !== 'object' || block._type !== BLOCK_CONTENT_TYPE) return;
 
     // Check if we have an HTML translation for this block
     if (blockHtmlTranslations.has(blockIndex)) {
@@ -242,7 +251,11 @@ export const applyBlockContentTranslations = (
 
       if (Array.isArray(block.children)) {
         block.children.forEach((child: any, childIndex: number) => {
-          if (isValidSpan(child) && translationIndex < translations.length) {
+          if (
+            child &&
+            isValidSpan(child) &&
+            translationIndex < translations.length
+          ) {
             // Replace the text with its translation
             block.children[childIndex].text = translations[translationIndex];
             translationIndex++;
