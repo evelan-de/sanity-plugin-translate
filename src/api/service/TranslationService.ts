@@ -66,6 +66,11 @@ const replaceTranslations = ({
 
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   Object.entries(obj as Record<string, unknown>).forEach(([key, value]) => {
+    // Skip _translations key to avoid null reference errors
+    if (key === '_translations') {
+      return;
+    }
+
     // Handle block content translations using our mapping
     if (Array.isArray(value) && translationMap) {
       // Calculate the current path for this array
@@ -177,6 +182,10 @@ const mapFieldsToTranslate = (
 
   // Iterate over each entry in the data object
   Object.entries(data).forEach(([key, value]) => {
+    // Skip _translations key since this is a special key and no need to translate it
+    if (key === '_translations') {
+      return;
+    }
     // Handle block content arrays (like "body" field)
     if (Array.isArray(value) && isBlockContent(value)) {
       // Use processBlockContent utility function to handle all block content processing
