@@ -688,8 +688,6 @@ const processReferenceObjects = async (
       if (documentTranslations?.newId === undefined) {
         return;
       }
-      // eslint-disable-next-line no-unused-expressions
-      [];
 
       replaceRefId(
         documentData,
