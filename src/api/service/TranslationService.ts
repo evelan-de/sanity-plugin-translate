@@ -193,7 +193,13 @@ const mapFieldsToTranslate = (
       const arrayPath = path ? `${path}.${key}` : key;
 
       // Process the block content array and populate fieldsToTranslate
-      processBlockContent(value, key, arrayPath, fieldsToTranslate);
+      processBlockContent(
+        value,
+        key,
+        arrayPath,
+        fieldsToTranslate,
+        translatableFieldKeys,
+      );
       return;
     }
 
@@ -214,6 +220,7 @@ const mapFieldsToTranslate = (
         key,
         path,
         fieldsToTranslate,
+        translatableFieldKeys,
       });
 
       const {

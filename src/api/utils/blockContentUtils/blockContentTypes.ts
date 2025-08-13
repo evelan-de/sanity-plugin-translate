@@ -62,6 +62,7 @@ export interface ProcessNestedBlockContentParams {
     context?: string;
     isHtml?: boolean;
   }[];
+  translatableFieldKeys?: (string | { type: string[]; key: string })[];
 }
 
 // Segment type for HTML parsing

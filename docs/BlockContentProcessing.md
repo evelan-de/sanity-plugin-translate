@@ -7,16 +7,17 @@ This document provides a comprehensive guide to the block content processing fun
 ## Table of Contents
 
 1. [Block Content Structure](#block-content-structure)
-2. [Modular Architecture](#modular-architecture)
-3. [Key Components](#key-components)
-4. [Process Flow](#process-flow)
-5. [HTML-Based Translation](#html-based-translation)
-6. [Header Context Enhancement](#header-context-enhancement)
-7. [Translation Mapping](#translation-mapping)
-8. [Utility Functions](#utility-functions)
-9. [Integration with TranslationService](#integration-with-translationservice)
-10. [Edge Cases and Solutions](#edge-cases-and-solutions)
-11. [Performance Considerations](#performance-considerations)
+2. [Custom Block Types with Nested Content](#custom-block-types-with-nested-content)
+3. [Modular Architecture](#modular-architecture)
+4. [Key Components](#key-components)
+5. [Process Flow](#process-flow)
+6. [HTML-Based Translation](#html-based-translation)
+7. [Header Context Enhancement](#header-context-enhancement)
+8. [Translation Mapping](#translation-mapping)
+9. [Utility Functions](#utility-functions)
+10. [Integration with TranslationService](#integration-with-translationservice)
+11. [Edge Cases and Solutions](#edge-cases-and-solutions)
+12. [Performance Considerations](#performance-considerations)
 
 ## Block Content Structure
 
@@ -59,6 +60,91 @@ Key characteristics:
 - Blocks have a `style` property indicating their type (normal, h1, h2, etc.)
 - Each block contains an array of `children`, typically spans
 - Spans contain the actual text content and optional formatting marks
+
+## Custom Block Types with Nested Content
+
+The plugin now supports **custom block types** that contain nested block content arrays. This is a crucial feature for handling complex content structures where custom blocks (like `featureText`, `callout`, etc.) contain their own rich text content.
+
+### Example: Custom Block with Nested Content
+
+```json
+[
+  {
+    "_key": "abc123",
+    "_type": "featureText",
+    "title": "Tips for CTA Optimization",
+    "content": [
+      {
+        "_key": "def456",
+        "_type": "block",
+        "style": "normal",
+        "children": [
+          {
+            "_key": "ghi789",
+            "_type": "span",
+            "text": "Test different texts, colors and positions."
+          }
+        ]
+      },
+      {
+        "_key": "jkl012",
+        "_type": "block",
+        "style": "normal",
+        "children": [
+          {
+            "_key": "mno345",
+            "_type": "span",
+            "text": "Avoid too many CTAs on one page to not overwhelm users."
+          }
+        ]
+      }
+    ]
+  }
+]
+```
+
+### Automatic Detection and Processing
+
+The plugin **automatically detects** nested block content arrays within custom blocks and processes them for translation without requiring additional configuration:
+
+- **No field key configuration needed**: Unlike regular fields, nested block content arrays are automatically detected
+- **Recursive processing**: The system recursively processes nested block content at any depth
+- **Unique key generation**: Each text span gets a unique UUID for translation mapping
+- **Structure preservation**: The original block structure is maintained after translation
+
+### Configuration Requirements
+
+For custom blocks with nested content, you only need to configure translatable field keys for **non-block-content fields**:
+
+```typescript
+// ✅ Required: Configure translatable fields like 'title'
+export const TRANSLATABLE_FIELD_KEYS: FieldKeyConfig = {
+  customTranslatableFieldKeys: [
+    { type: ['featureText'], key: 'title' }, // Required for title field
+    // ❌ NOT needed: { type: ['featureText'], key: 'content' } - auto-detected!
+  ],
+};
+```
+
+### Processing Flow for Custom Blocks
+
+1. **Detection**: `processCustomBlockType()` identifies custom block types in block content arrays
+2. **Field Analysis**: Each field in the custom block is analyzed:
+   - String fields matching `translatableFieldKeys` are added for translation
+   - Array fields are checked with `isBlockContent()` for nested block content
+3. **Nested Processing**: Block content arrays are processed recursively:
+   - Each block's spans are extracted for translation
+   - Unique UUID keys are generated for each text span
+   - Mapping information is stored for translation application
+4. **Translation**: Nested text content is translated alongside other content
+5. **Application**: Translations are applied back to the nested structure using the stored mapping
+
+### Benefits
+
+- **Zero Configuration**: Nested block content is automatically detected and processed
+- **Flexible Structure**: Supports any level of nesting and custom block types
+- **Consistent Translation**: All text content is translated regardless of structure complexity
+- **Structure Preservation**: Original block hierarchy and formatting are maintained
 
 ## Modular Architecture
 
