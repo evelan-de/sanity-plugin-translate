@@ -2,6 +2,21 @@
 
 This Sanity plugin leverages the DeepL API to provide translation capabilities within Sanity Studio. It is designed to enhance content management systems by allowing automatic translation of text fields and document references based on specified languages.
 
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+  - [Setting Up API Routes](#setting-up-api-routes)
+  - [Required Environment Variables](#required-environment-variables)
+  - [Translating a Document](#translating-a-document)
+  - [Customizing Translatable Fields](#customizing-translatable-fields)
+  - [Fixing References](#fixing-references)
+- [Develop & Test](#develop--test)
+- [License](#license)
+- [More Information](#more-information)
+
 ## Features
 
 - **Translation Integration**: Utilizes the `deepl-node` library to integrate with the DeepL API for robust translation capabilities.

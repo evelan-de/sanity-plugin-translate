@@ -22,7 +22,106 @@ import {
   BlockInfo,
   HEADER_STYLES,
   ProcessNestedBlockContentParams,
+  SPAN_TYPE,
 } from './blockContentTypes';
+
+/**
+ * Process custom block types that are not standard Sanity blocks
+ */
+const processCustomBlockType = (params: {
+  block: any;
+  blockIndex: number;
+  nestedKey: string;
+  nestedArrayPath: string;
+  fieldsToTranslate: {
+    key: string;
+    value: string;
+    context?: string;
+    isHtml?: boolean;
+  }[];
+  translatableFieldKeys: (string | { type: string[]; key: string })[];
+}): void => {
+  const {
+    block,
+    blockIndex,
+    nestedArrayPath,
+    fieldsToTranslate,
+    translatableFieldKeys,
+  } = params;
+  const blockType = block._type;
+
+  // Process each field in the custom block
+  Object.entries(block).forEach(([fieldKey, fieldValue]) => {
+    // Skip system fields
+    if (fieldKey.startsWith('_')) {
+      return;
+    }
+
+    // Check if this field is translatable for this block type
+    const fieldDefinition = translatableFieldKeys.find((f) =>
+      typeof f === 'object' ? f.key === fieldKey : f === fieldKey,
+    );
+
+    if (fieldDefinition) {
+      const isTranslatable =
+        typeof fieldDefinition === 'string'
+          ? true // Generic translatable field
+          : fieldDefinition.type.includes(blockType);
+
+      // Handle translatable string fields
+      if (
+        isTranslatable &&
+        typeof fieldValue === 'string' &&
+        fieldValue.trim() !== ''
+      ) {
+        const uniqueFieldKey = `${nestedArrayPath}.${blockIndex}.${fieldKey}`;
+        fieldsToTranslate.push({ key: uniqueFieldKey, value: fieldValue });
+      }
+    }
+
+    // Handle nested block content arrays within custom blocks
+    if (Array.isArray(fieldValue) && isBlockContent(fieldValue)) {
+      // Process the nested block content array directly
+      const customBlockArrayPath = `${nestedArrayPath}.${blockIndex}.${fieldKey}`;
+
+      // Process each block in the content array
+      fieldValue.forEach((contentBlock: any, contentBlockIndex: number) => {
+        if (
+          contentBlock._type === BLOCK_CONTENT_TYPE &&
+          Array.isArray(contentBlock.children)
+        ) {
+          contentBlock.children.forEach((child: any) => {
+            if (
+              child._type === SPAN_TYPE &&
+              typeof child.text === 'string' &&
+              child.text.trim() !== ''
+            ) {
+              // Generate a unique key for this span
+              const key = uuid();
+
+              // Add to fields to translate
+              fieldsToTranslate.push({
+                key,
+                value: child.text,
+              });
+
+              // Store mapping information
+              blockContentMap.set(key, {
+                fieldName: fieldKey,
+                blockIndex: contentBlockIndex,
+                arrayPath: customBlockArrayPath,
+                isHeader: false,
+              });
+            }
+          });
+        }
+      });
+    }
+
+    // Handle nested objects within custom blocks - will be processed by main function
+    // Skip for now to avoid circular dependency issues
+  });
+};
 
 /**
  * Process a block content array and extract translatable content
@@ -30,6 +129,7 @@ import {
  * @param nestedKey The key of the array in its parent object
  * @param nestedArrayPath The full path to the array
  * @param fieldsToTranslate Array to populate with fields to translate
+ * @param translatableFieldKeys Optional array of translatable field keys for custom block processing
  */
 export const processBlockContent = (
   nestedArray: any[],
@@ -41,6 +141,7 @@ export const processBlockContent = (
     context?: string;
     isHtml?: boolean;
   }[],
+  translatableFieldKeys?: (string | { type: string[]; key: string })[],
 ): void => {
   // Map to store information about each block for context lookup
   const blockContextMap = new Map<number, BlockInfo>();
@@ -141,6 +242,16 @@ export const processBlockContent = (
           });
         }
       }
+    } else if (block._type && translatableFieldKeys) {
+      // Handle custom block types (like featureText)
+      processCustomBlockType({
+        block,
+        blockIndex,
+        nestedKey,
+        nestedArrayPath,
+        fieldsToTranslate,
+        translatableFieldKeys,
+      });
     }
   });
 };
@@ -152,7 +263,8 @@ export const processBlockContent = (
 export const processNestedBlockContent = (
   params: ProcessNestedBlockContentParams,
 ): void => {
-  const { object, key, path, fieldsToTranslate } = params;
+  const { object, key, path, fieldsToTranslate, translatableFieldKeys } =
+    params;
 
   // Skip null or undefined values
   if (object[key] === null || object[key] === undefined) {
@@ -164,8 +276,14 @@ export const processNestedBlockContent = (
 
   // Check if this is an array of block content
   if (Array.isArray(value) && isBlockContent(value)) {
-    // Process block content array
-    processBlockContent(value, key, currentPath, fieldsToTranslate);
+    // Process block content array with translatable field keys
+    processBlockContent(
+      value,
+      key,
+      currentPath,
+      fieldsToTranslate,
+      translatableFieldKeys,
+    );
   } else if (typeof value === 'object' && value !== null) {
     // Recursively process nested objects
     const nestedObject = value as Record<string, unknown>;
@@ -175,6 +293,7 @@ export const processNestedBlockContent = (
         key: nestedKey,
         path: currentPath,
         fieldsToTranslate,
+        translatableFieldKeys,
       });
     });
   }
