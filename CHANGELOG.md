@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.14.1](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.14.0...v1.14.1) (2025-08-13)
+
+### Bug Fixes
+
+- **block-content:** add support custom nested block types in translation ([1e66363](https://github.com/evelan-de/sanity-plugin-translate/commit/1e66363567d9b1e4aec92687f3b8fd7306e51c86))
+
 ## [1.14.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.13.2...v1.14.0) (2025-08-11)
 
 ### Features
