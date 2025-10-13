@@ -80,7 +80,7 @@
     "@commitlint/cli": "19.8.1",
     "@commitlint/config-conventional": "19.8.1",
     "@sanity/browserslist-config": "1.0.5",
-    "@sanity/pkg-utils": "7.11.6",
+    "@sanity/pkg-utils": "7.9.7",
     "@sanity/plugin-kit": "4.0.19",
     "@sanity/semantic-release-preset": "5.0.0",
     "@types/react": "18.3.3",
@@ -104,12 +104,12 @@
     "react-dom": "18.3.1",
     "sanity": "4.3.0",
     "styled-components": "6.1.19",
-    "typescript": "5.9.2"
+    "typescript": "5.8.3"
   },
   "peerDependencies": {
     "react": "^18 || ^19",
     "sanity": "^3 || ^4",
-    "zod": "^3"
+    "zod": "^4"
   },
   "browserslist": "extends @sanity/browserslist-config",
   "engines": {
