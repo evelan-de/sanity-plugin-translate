@@ -5,6 +5,16 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.15.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.14.1...v1.15.0) (2025-10-14)
+
+### Features
+
+- **WEB-837:** [#comment](https://github.com/evelan-de/sanity-plugin-translate/issues/comment) upgrades zod to v4 in sanity-plugin-translate ([2258b98](https://github.com/evelan-de/sanity-plugin-translate/commit/2258b98a105df69d5eace71148171f7da4f43839))
+
+### Bug Fixes
+
+- upgraded pkg-utils ([df8fad1](https://github.com/evelan-de/sanity-plugin-translate/commit/df8fad1401b4a6d75e9d23774b5eaea4727520bc))
+
 ## [1.14.1](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.14.0...v1.14.1) (2025-08-13)
 
 ### Bug Fixes
