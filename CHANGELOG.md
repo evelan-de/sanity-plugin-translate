@@ -5,6 +5,20 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.16.0...v2.0.0) (2026-01-05)
+
+### ⚠ BREAKING CHANGES
+
+- Upgraded to Sanity v5 and React 19
+
+### Features
+
+- bump to major version ([afac6b5](https://github.com/evelan-de/sanity-plugin-translate/commit/afac6b50f49440b96ff69536965dd0db8bedfeca))
+
+### Bug Fixes
+
+- re-added conventional-changelog-conventionalcommits' ([17b6c4e](https://github.com/evelan-de/sanity-plugin-translate/commit/17b6c4e7e899e0de72ad45dda750b0cfa90cdee1))
+
 ## [1.16.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.15.0...v1.16.0) (2026-01-05)
 
 ### Features
