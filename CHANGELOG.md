@@ -5,6 +5,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.1](https://github.com/evelan-de/sanity-plugin-translate/compare/v2.0.0...v2.0.1) (2026-01-24)
+
+### Bug Fixes
+
+- recurse into nested object fields in custom block types during translation collection ([a6aaa02](https://github.com/evelan-de/sanity-plugin-translate/commit/a6aaa0202353acb51a1e61376cac06d9712fadd1))
+- resolve lint errors in test files and block content processing ([df049fb](https://github.com/evelan-de/sanity-plugin-translate/commit/df049fb26a2824b08b437c7d2a93845087003fdb))
+
 ## [2.0.0](https://github.com/evelan-de/sanity-plugin-translate/compare/v1.16.0...v2.0.0) (2026-01-05)
 
 ### ⚠ BREAKING CHANGES
