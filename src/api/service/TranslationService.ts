@@ -51,7 +51,7 @@ type ReplaceTranslationsParams = {
   translatableArrayFieldKeys: string[];
 };
 
-const replaceTranslations = ({
+export const replaceTranslations = ({
   obj,
   batchedArrayFieldTranslations,
   batchedTranslations,
@@ -149,7 +149,7 @@ const replaceTranslations = ({
  * @param parentType The type of the parent object, used to determine if a field is translatable.
  * @returns An object containing two arrays: `fieldsToTranslate` for single string fields and `arrayFieldsToTranslate` for array fields.
  */
-const mapFieldsToTranslate = (
+export const mapFieldsToTranslate = (
   data: unknown,
   parentType: string,
   path: string = '',

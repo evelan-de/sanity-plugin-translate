@@ -66,6 +66,7 @@
     "lint": "eslint .",
     "lint-fix": "eslint --fix .",
     "prepublishOnly": "npm run build",
+    "test": "vitest run",
     "watch": "pkg-utils watch --strict",
     "prepare": "husky"
   },
@@ -105,7 +106,8 @@
     "react-dom": "19.2.3",
     "sanity": "5.1.0",
     "styled-components": "6.1.19",
-    "typescript": "5.8.3"
+    "typescript": "5.8.3",
+    "vitest": "4.0.18"
   },
   "peerDependencies": {
     "react": "^19",
