@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { clearBlockContentMap } from '../blockContentContext';
 import { processBlockContent } from '../blockContentProcessing';
@@ -207,9 +207,7 @@ describe('processBlockContent - nested object fields in custom block types', () 
     );
 
     // Empty/whitespace-only strings should NOT be collected
-    const emptyFields = fieldsToTranslate.filter(
-      (f) => f.value.trim() === '',
-    );
+    const emptyFields = fieldsToTranslate.filter((f) => f.value.trim() === '');
     expect(emptyFields).toHaveLength(0);
 
     // Valid non-empty title should be collected

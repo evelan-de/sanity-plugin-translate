@@ -1,6 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { parseHtmlToSpans, parseHtmlToBlockStructure } from '../blockContentHtml';
+import {
+  parseHtmlToBlockStructure,
+  parseHtmlToSpans,
+} from '../blockContentHtml';
 
 describe('parseHtmlToSpans', () => {
   it('parses plain text into a single span', () => {
@@ -95,7 +98,9 @@ describe('parseHtmlToSpans', () => {
 
   it('merges consecutive spans with same marks', () => {
     // Two adjacent text nodes with same marks should be merged
-    const spans = parseHtmlToSpans('<strong>Part1</strong><strong>Part2</strong>');
+    const spans = parseHtmlToSpans(
+      '<strong>Part1</strong><strong>Part2</strong>',
+    );
     // The implementation merges consecutive spans with the same marks
     expect(spans).toHaveLength(1);
     expect(spans[0].text).toBe('Part1Part2');
@@ -119,7 +124,9 @@ describe('parseHtmlToSpans', () => {
     const spans = parseHtmlToSpans(
       '<span data-mark="primary"><span data-mark="primary">Text</span></span>',
     );
-    expect(spans[0].marks.filter((m: string) => m === 'primary')).toHaveLength(1);
+    expect(spans[0].marks.filter((m: string) => m === 'primary')).toHaveLength(
+      1,
+    );
   });
 });
 
@@ -133,7 +140,8 @@ describe('parseHtmlToBlockStructure', () => {
   };
 
   it('parses translated HTML back to block structure', () => {
-    const html = '<p data-block-key="key1" data-block-style="normal" data-markdefs="">Translated text</p>';
+    const html =
+      '<p data-block-key="key1" data-block-style="normal" data-markdefs="">Translated text</p>';
     const result = parseHtmlToBlockStructure(html, originalBlock);
 
     expect(result._type).toBe('block');
@@ -145,19 +153,23 @@ describe('parseHtmlToBlockStructure', () => {
   });
 
   it('preserves block key from HTML data attribute', () => {
-    const html = '<p data-block-key="customKey" data-block-style="normal" data-markdefs="">Text</p>';
+    const html =
+      '<p data-block-key="customKey" data-block-style="normal" data-markdefs="">Text</p>';
     const result = parseHtmlToBlockStructure(html, originalBlock);
     expect(result._key).toBe('customKey');
   });
 
   it('preserves block style from HTML data attribute', () => {
-    const html = '<h2 data-block-key="key1" data-block-style="h2" data-markdefs="">Heading</h2>';
+    const html =
+      '<h2 data-block-key="key1" data-block-style="h2" data-markdefs="">Heading</h2>';
     const result = parseHtmlToBlockStructure(html, originalBlock);
     expect(result.style).toBe('h2');
   });
 
   it('preserves markDefs from HTML data attribute', () => {
-    const markDefs = [{ _key: 'link1', _type: 'link', href: 'https://example.com' }];
+    const markDefs = [
+      { _key: 'link1', _type: 'link', href: 'https://example.com' },
+    ];
     const encodedMarkDefs = encodeURIComponent(JSON.stringify(markDefs));
     const html = `<p data-block-key="key1" data-block-style="normal" data-markdefs="${encodedMarkDefs}">Text with <a href="https://example.com" data-markdef-key="link1">link</a></p>`;
 
@@ -166,7 +178,8 @@ describe('parseHtmlToBlockStructure', () => {
   });
 
   it('preserves marks on spans in translated content', () => {
-    const html = '<p data-block-key="key1" data-block-style="normal" data-markdefs="">Normal <strong>Bold</strong> text</p>';
+    const html =
+      '<p data-block-key="key1" data-block-style="normal" data-markdefs="">Normal <strong>Bold</strong> text</p>';
     const result = parseHtmlToBlockStructure(html, originalBlock);
 
     const boldSpan = result.children.find(
@@ -186,7 +199,8 @@ describe('parseHtmlToBlockStructure', () => {
   });
 
   it('handles complex HTML with multiple marks', () => {
-    const html = '<p data-block-key="key1" data-block-style="normal" data-markdefs="">Start <strong><em>bold-italic</em></strong> end</p>';
+    const html =
+      '<p data-block-key="key1" data-block-style="normal" data-markdefs="">Start <strong><em>bold-italic</em></strong> end</p>';
     const result = parseHtmlToBlockStructure(html, originalBlock);
 
     const biSpan = result.children.find(

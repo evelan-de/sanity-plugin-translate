@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_TRANSLATABLE_ARRAY_FIELD_KEYS,
@@ -34,9 +34,7 @@ describe('getMergedTranslatableFieldKeys', () => {
 
   it('appends custom object field keys', () => {
     const config = {
-      customTranslatableFieldKeys: [
-        { type: ['myBlock'], key: 'customKey' },
-      ],
+      customTranslatableFieldKeys: [{ type: ['myBlock'], key: 'customKey' }],
     };
     const result = getMergedTranslatableFieldKeys(config);
     expect(result).toContainEqual({ type: ['myBlock'], key: 'customKey' });

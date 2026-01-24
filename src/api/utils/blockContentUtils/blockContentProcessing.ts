@@ -68,6 +68,7 @@ const processNestedObjectFields = (
         translatableFieldKeys,
       );
     } else if (Array.isArray(value) && isBlockContent(value)) {
+      // eslint-disable-next-line no-use-before-define
       processBlockContent(
         value,
         key,

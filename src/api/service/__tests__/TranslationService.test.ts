@@ -1,7 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { clearBlockContentMap } from '../../utils/blockContentUtils';
-import { mapFieldsToTranslate, replaceTranslations } from '../TranslationService';
+import {
+  mapFieldsToTranslate,
+  replaceTranslations,
+} from '../TranslationService';
 
 type TranslatableFieldKey = string | { type: string[]; key: string };
 
@@ -37,8 +40,14 @@ describe('mapFieldsToTranslate', () => {
       defaultArrayFieldKeys,
     );
 
-    expect(fieldsToTranslate).toContainEqual({ key: 'title', value: 'Page Title' });
-    expect(fieldsToTranslate).toContainEqual({ key: 'description', value: 'Page Description' });
+    expect(fieldsToTranslate).toContainEqual({
+      key: 'title',
+      value: 'Page Title',
+    });
+    expect(fieldsToTranslate).toContainEqual({
+      key: 'description',
+      value: 'Page Description',
+    });
     // 'slug' is not in defaultFieldKeys
     const slugField = fieldsToTranslate.find((f) => f.value === 'page-slug');
     expect(slugField).toBeUndefined();
@@ -80,8 +89,14 @@ describe('mapFieldsToTranslate', () => {
     );
 
     // 'name' should be collected for 'form' type
-    expect(fieldsToTranslate).toContainEqual({ key: 'name', value: 'Contact Form' });
-    expect(fieldsToTranslate).toContainEqual({ key: 'title', value: 'Form Title' });
+    expect(fieldsToTranslate).toContainEqual({
+      key: 'name',
+      value: 'Contact Form',
+    });
+    expect(fieldsToTranslate).toContainEqual({
+      key: 'title',
+      value: 'Form Title',
+    });
   });
 
   it('skips name field for types not in the definition', () => {
@@ -102,7 +117,10 @@ describe('mapFieldsToTranslate', () => {
     // 'name' should NOT be collected for 'page' type
     const nameField = fieldsToTranslate.find((f) => f.value === 'Some Name');
     expect(nameField).toBeUndefined();
-    expect(fieldsToTranslate).toContainEqual({ key: 'title', value: 'Page Title' });
+    expect(fieldsToTranslate).toContainEqual({
+      key: 'title',
+      value: 'Page Title',
+    });
   });
 
   it('recursively collects fields from nested objects', () => {
@@ -124,9 +142,18 @@ describe('mapFieldsToTranslate', () => {
       defaultArrayFieldKeys,
     );
 
-    expect(fieldsToTranslate).toContainEqual({ key: 'title', value: 'Top Level' });
-    expect(fieldsToTranslate).toContainEqual({ key: 'seo.title', value: 'SEO Title' });
-    expect(fieldsToTranslate).toContainEqual({ key: 'seo.description', value: 'SEO Description' });
+    expect(fieldsToTranslate).toContainEqual({
+      key: 'title',
+      value: 'Top Level',
+    });
+    expect(fieldsToTranslate).toContainEqual({
+      key: 'seo.title',
+      value: 'SEO Title',
+    });
+    expect(fieldsToTranslate).toContainEqual({
+      key: 'seo.description',
+      value: 'SEO Description',
+    });
   });
 
   it('handles deeply nested objects with correct paths', () => {

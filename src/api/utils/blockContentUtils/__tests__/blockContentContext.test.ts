@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   blockContentMap,
@@ -42,12 +42,24 @@ describe('findContextForHeaderBlock', () => {
 
   it('returns text of the next normal block after header', () => {
     const nestedArray = [
-      { _type: 'block', style: 'h1', children: [{ _type: 'span', text: 'Title' }] },
-      { _type: 'block', style: 'normal', children: [{ _type: 'span', text: 'Context paragraph' }] },
+      {
+        _type: 'block',
+        style: 'h1',
+        children: [{ _type: 'span', text: 'Title' }],
+      },
+      {
+        _type: 'block',
+        style: 'normal',
+        children: [{ _type: 'span', text: 'Context paragraph' }],
+      },
     ];
 
     blockContextMap.set(0, { text: 'Title', isNormal: false, isHeader: true });
-    blockContextMap.set(1, { text: 'Context paragraph', isNormal: true, isHeader: false });
+    blockContextMap.set(1, {
+      text: 'Context paragraph',
+      isNormal: true,
+      isHeader: false,
+    });
 
     const context = findContextForHeaderBlock(nestedArray, blockContextMap, 0);
     expect(context).toBe('Context paragraph');
@@ -60,9 +72,21 @@ describe('findContextForHeaderBlock', () => {
       { _type: 'block', style: 'normal' },
     ];
 
-    blockContextMap.set(0, { text: 'Main Title', isNormal: false, isHeader: true });
-    blockContextMap.set(1, { text: 'Subtitle', isNormal: false, isHeader: true });
-    blockContextMap.set(2, { text: 'Body text', isNormal: true, isHeader: false });
+    blockContextMap.set(0, {
+      text: 'Main Title',
+      isNormal: false,
+      isHeader: true,
+    });
+    blockContextMap.set(1, {
+      text: 'Subtitle',
+      isNormal: false,
+      isHeader: true,
+    });
+    blockContextMap.set(2, {
+      text: 'Body text',
+      isNormal: true,
+      isHeader: false,
+    });
 
     const context = findContextForHeaderBlock(nestedArray, blockContextMap, 0);
     expect(context).toBe('Body text');
@@ -75,7 +99,11 @@ describe('findContextForHeaderBlock', () => {
     ];
 
     blockContextMap.set(0, { text: 'Title', isNormal: false, isHeader: true });
-    blockContextMap.set(1, { text: 'Subtitle', isNormal: false, isHeader: true });
+    blockContextMap.set(1, {
+      text: 'Subtitle',
+      isNormal: false,
+      isHeader: true,
+    });
 
     const context = findContextForHeaderBlock(nestedArray, blockContextMap, 0);
     expect(context).toBeUndefined();
@@ -88,7 +116,11 @@ describe('findContextForHeaderBlock', () => {
     ];
 
     blockContextMap.set(0, { text: 'Intro', isNormal: true, isHeader: false });
-    blockContextMap.set(1, { text: 'Trailing Title', isNormal: false, isHeader: true });
+    blockContextMap.set(1, {
+      text: 'Trailing Title',
+      isNormal: false,
+      isHeader: true,
+    });
 
     const context = findContextForHeaderBlock(nestedArray, blockContextMap, 1);
     expect(context).toBeUndefined();
@@ -102,8 +134,16 @@ describe('findContextForHeaderBlock', () => {
     ];
 
     blockContextMap.set(0, { text: 'Header', isNormal: false, isHeader: true });
-    blockContextMap.set(1, { text: 'First paragraph', isNormal: true, isHeader: false });
-    blockContextMap.set(2, { text: 'Second paragraph', isNormal: true, isHeader: false });
+    blockContextMap.set(1, {
+      text: 'First paragraph',
+      isNormal: true,
+      isHeader: false,
+    });
+    blockContextMap.set(2, {
+      text: 'Second paragraph',
+      isNormal: true,
+      isHeader: false,
+    });
 
     const context = findContextForHeaderBlock(nestedArray, blockContextMap, 0);
     expect(context).toBe('First paragraph');
