@@ -26,6 +26,60 @@ import {
 } from './blockContentTypes';
 
 /**
+ * Recursively process nested object fields within custom block types
+ * to find translatable string fields at any depth
+ */
+const processNestedObjectFields = (
+  obj: Record<string, any>,
+  basePath: string,
+  fieldsToTranslate: {
+    key: string;
+    value: string;
+    context?: string;
+    isHtml?: boolean;
+  }[],
+  translatableFieldKeys: (string | { type: string[]; key: string })[],
+): void => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+  const objType = obj._type || '';
+
+  Object.entries(obj).forEach(([key, value]) => {
+    if (key.startsWith('_')) return;
+
+    if (typeof value === 'string' && value.trim() !== '') {
+      const fieldDef = translatableFieldKeys.find((f) =>
+        typeof f === 'object' ? f.key === key : f === key,
+      );
+      if (
+        fieldDef &&
+        (typeof fieldDef === 'string' || fieldDef.type.includes(objType))
+      ) {
+        fieldsToTranslate.push({ key: `${basePath}.${key}`, value });
+      }
+    } else if (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value)
+    ) {
+      processNestedObjectFields(
+        value,
+        `${basePath}.${key}`,
+        fieldsToTranslate,
+        translatableFieldKeys,
+      );
+    } else if (Array.isArray(value) && isBlockContent(value)) {
+      processBlockContent(
+        value,
+        key,
+        `${basePath}.${key}`,
+        fieldsToTranslate,
+        translatableFieldKeys,
+      );
+    }
+  });
+};
+
+/**
  * Process custom block types that are not standard Sanity blocks
  */
 const processCustomBlockType = (params: {
@@ -118,8 +172,20 @@ const processCustomBlockType = (params: {
       });
     }
 
-    // Handle nested objects within custom blocks - will be processed by main function
-    // Skip for now to avoid circular dependency issues
+    // Handle nested object fields within custom blocks
+    if (
+      typeof fieldValue === 'object' &&
+      fieldValue !== null &&
+      !Array.isArray(fieldValue)
+    ) {
+      const nestedPath = `${nestedArrayPath}.${blockIndex}.${fieldKey}`;
+      processNestedObjectFields(
+        fieldValue,
+        nestedPath,
+        fieldsToTranslate,
+        translatableFieldKeys,
+      );
+    }
   });
 };
 
