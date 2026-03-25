@@ -93,7 +93,7 @@ export const replaceTranslations = ({
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       (obj as Record<string, unknown>)[key] =
         batchedArrayFieldTranslations.find((f) => f.key === qualifiedKey)
-          ?.value || value;
+          ?.value ?? value;
       return;
     }
 
@@ -572,27 +572,19 @@ async function translateJSONData(
   for (let i = 0; i < uniqueSpecialArrayFieldsToTranslate.length; i += 50) {
     const batch = uniqueSpecialArrayFieldsToTranslate.slice(i, i + 50);
 
-    // Track value counts per field for index mapping
+    // Build batchValues and track per-field counts from a single pass
+    // to guarantee the counts always match the actual values sent for translation
+    const batchValues: string[] = [];
     const fieldValueCounts = batch.map((field) => {
-      if (Array.isArray(field.value)) {
-        return {
-          key: field.key,
-          count: field.value
-            .flat()
-            .filter((v) => typeof v === 'string' && v.trim() !== '').length,
-        };
-      }
-      const hasValue =
-        typeof field.value === 'string' && field.value.trim() !== '';
-      return { key: field.key, count: hasValue ? 1 : 0 };
+      const raw = Array.isArray(field.value)
+        ? field.value.flat()
+        : [field.value];
+      const values = raw.filter(
+        (v): v is string => typeof v === 'string' && v.trim() !== '',
+      );
+      batchValues.push(...values);
+      return { key: field.key, count: values.length };
     });
-
-    const batchValues = batch
-      .map((field) =>
-        Array.isArray(field.value) ? field.value.flat() : field.value,
-      )
-      .flat()
-      .filter((value) => typeof value === 'string' && value.trim() !== '');
 
     const translations = await translator.translateText(
       batchValues,

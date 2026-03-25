@@ -627,10 +627,12 @@ describe('mapFieldsToTranslate - array field path qualification', () => {
     );
 
     // Each cells array should have a unique path-qualified key
-    expect(arrayFieldsToTranslate.length).toBeGreaterThanOrEqual(2);
-    const keys = arrayFieldsToTranslate.map((f) => f.key);
-    const uniqueKeys = new Set(keys);
-    expect(uniqueKeys.size).toBe(keys.length);
+    expect(arrayFieldsToTranslate).toHaveLength(2);
+    expect(arrayFieldsToTranslate[0].key).toContain('.cells');
+    expect(arrayFieldsToTranslate[1].key).toContain('.cells');
+    expect(arrayFieldsToTranslate[0].key).not.toBe(
+      arrayFieldsToTranslate[1].key,
+    );
   });
 
   it('preserves backward compatibility for top-level array fields', () => {
@@ -653,5 +655,129 @@ describe('mapFieldsToTranslate - array field path qualification', () => {
       key: 'keywords',
       value: ['keyword1', 'keyword2'],
     });
+  });
+
+  it('handles empty array fields', () => {
+    const data = {
+      _type: 'page',
+      keywords: [],
+    };
+
+    const { arrayFieldsToTranslate } = mapFieldsToTranslate(
+      data,
+      'page',
+      '',
+      defaultFieldKeys,
+      defaultArrayFieldKeys,
+    );
+
+    expect(arrayFieldsToTranslate).toHaveLength(1);
+    expect(arrayFieldsToTranslate[0].value).toEqual([]);
+  });
+
+  it('handles array fields with whitespace-only and empty strings', () => {
+    const data = {
+      _type: 'page',
+      keywords: ['  ', '', 'valid'],
+    };
+
+    const { arrayFieldsToTranslate } = mapFieldsToTranslate(
+      data,
+      'page',
+      '',
+      defaultFieldKeys,
+      defaultArrayFieldKeys,
+    );
+
+    // All values are collected; filtering happens at translation time
+    expect(arrayFieldsToTranslate).toHaveLength(1);
+    expect(arrayFieldsToTranslate[0].value).toEqual(['  ', '', 'valid']);
+  });
+});
+
+describe('integration: mapFieldsToTranslate + replaceTranslations round-trip', () => {
+  beforeEach(() => {
+    clearBlockContentMap();
+  });
+
+  it('correctly maps and replaces multi-row table cells', () => {
+    const data = {
+      _type: 'blogTable',
+      tableData: {
+        _type: 'tableData',
+        rows: [
+          { _key: 'r0', _type: 'row', cells: ['Header A', 'Header B'] },
+          { _key: 'r1', _type: 'row', cells: ['Value 1', 'Value 2'] },
+          { _key: 'r2', _type: 'row', cells: ['Value 3', 'Value 4'] },
+        ],
+      },
+    };
+
+    // Step 1: Map fields
+    const { arrayFieldsToTranslate } = mapFieldsToTranslate(
+      data,
+      'blogTable',
+      '',
+      defaultFieldKeys,
+      ['cells'],
+    );
+
+    expect(arrayFieldsToTranslate).toHaveLength(3);
+
+    // Step 2: Simulate translations (each field gets its own translated values)
+    const batchedArrayFieldTranslations = [
+      {
+        key: arrayFieldsToTranslate[0].key,
+        value: ['translated_Header A', 'translated_Header B'],
+      },
+      {
+        key: arrayFieldsToTranslate[1].key,
+        value: ['translated_Value 1', 'translated_Value 2'],
+      },
+      {
+        key: arrayFieldsToTranslate[2].key,
+        value: ['translated_Value 3', 'translated_Value 4'],
+      },
+    ];
+
+    // Step 3: Replace translations
+    replaceTranslations({
+      obj: data,
+      batchedArrayFieldTranslations,
+      batchedTranslations: [],
+      fieldsToTranslate: [],
+      translatableArrayFieldKeys: ['cells'],
+    });
+
+    // Step 4: Verify all rows translated independently
+    expect(data.tableData.rows[0].cells).toEqual([
+      'translated_Header A',
+      'translated_Header B',
+    ]);
+    expect(data.tableData.rows[1].cells).toEqual([
+      'translated_Value 1',
+      'translated_Value 2',
+    ]);
+    expect(data.tableData.rows[2].cells).toEqual([
+      'translated_Value 3',
+      'translated_Value 4',
+    ]);
+  });
+
+  it('replaceTranslations preserves empty translated arrays', () => {
+    const obj: Record<string, unknown> = {
+      keywords: ['original'],
+    };
+
+    replaceTranslations({
+      obj,
+      batchedArrayFieldTranslations: [{ key: 'keywords', value: [] }],
+      batchedTranslations: [],
+      fieldsToTranslate: [],
+      translatableArrayFieldKeys: ['keywords'],
+    });
+
+    // Empty array should not fall back to original value
+    expect(obj.keywords).toEqual([]);
   });
 });
