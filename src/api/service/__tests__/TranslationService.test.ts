@@ -534,4 +534,124 @@ describe('replaceTranslations', () => {
       }),
     ).not.toThrow();
   });
+
+  it('replaces multiple array fields with same name at different paths', () => {
+    const obj: Record<string, unknown> = {
+      tableData: {
+        rows: [
+          { _key: 'r0', cells: ['Header A', 'Header B'] },
+          { _key: 'r1', cells: ['Value 1', 'Value 2'] },
+          { _key: 'r2', cells: ['Value 3', 'Value 4'] },
+        ],
+      },
+    };
+
+    replaceTranslations({
+      obj,
+      batchedArrayFieldTranslations: [
+        {
+          key: 'tableData.rows.0.cells',
+          value: ['Überschrift A', 'Überschrift B'],
+        },
+        { key: 'tableData.rows.1.cells', value: ['Wert 1', 'Wert 2'] },
+        { key: 'tableData.rows.2.cells', value: ['Wert 3', 'Wert 4'] },
+      ],
+      batchedTranslations: [],
+      fieldsToTranslate: [],
+      translatableArrayFieldKeys: ['cells'],
+    });
+
+    const rows = (obj.tableData as any).rows;
+    expect(rows[0].cells).toEqual(['Überschrift A', 'Überschrift B']);
+    expect(rows[1].cells).toEqual(['Wert 1', 'Wert 2']);
+    expect(rows[2].cells).toEqual(['Wert 3', 'Wert 4']);
+  });
+});
+
+describe('mapFieldsToTranslate - array field path qualification', () => {
+  beforeEach(() => {
+    clearBlockContentMap();
+  });
+
+  it('produces path-qualified keys for nested array fields', () => {
+    const data = {
+      _type: 'blogTable',
+      tableData: {
+        _type: 'tableData',
+        rows: [
+          { _key: 'r0', _type: 'row', cells: ['Header A', 'Header B'] },
+          { _key: 'r1', _type: 'row', cells: ['Value 1', 'Value 2'] },
+        ],
+      },
+    };
+
+    const { arrayFieldsToTranslate } = mapFieldsToTranslate(
+      data,
+      'blogTable',
+      '',
+      defaultFieldKeys,
+      ['cells'],
+    );
+
+    expect(arrayFieldsToTranslate).toHaveLength(2);
+    expect(arrayFieldsToTranslate[0].key).toBe('tableData.rows.0.cells');
+    expect(arrayFieldsToTranslate[0].value).toEqual(['Header A', 'Header B']);
+    expect(arrayFieldsToTranslate[1].key).toBe('tableData.rows.1.cells');
+    expect(arrayFieldsToTranslate[1].value).toEqual(['Value 1', 'Value 2']);
+  });
+
+  it('handles multiple tables in same document', () => {
+    const data = {
+      _type: 'page',
+      body: [
+        {
+          _type: 'blogTable',
+          _key: 'table1',
+          tableData: {
+            _type: 'tableData',
+            rows: [
+              { _key: 'r0', _type: 'row', cells: ['Tool', 'Price'] },
+              { _key: 'r1', _type: 'row', cells: ['GPTZero', 'Free'] },
+            ],
+          },
+        },
+      ],
+    };
+
+    const { arrayFieldsToTranslate } = mapFieldsToTranslate(
+      data,
+      'page',
+      '',
+      defaultFieldKeys,
+      ['cells'],
+    );
+
+    // Each cells array should have a unique path-qualified key
+    expect(arrayFieldsToTranslate.length).toBeGreaterThanOrEqual(2);
+    const keys = arrayFieldsToTranslate.map((f) => f.key);
+    const uniqueKeys = new Set(keys);
+    expect(uniqueKeys.size).toBe(keys.length);
+  });
+
+  it('preserves backward compatibility for top-level array fields', () => {
+    const data = {
+      _type: 'page',
+      title: 'Page',
+      keywords: ['keyword1', 'keyword2'],
+    };
+
+    const { arrayFieldsToTranslate } = mapFieldsToTranslate(
+      data,
+      'page',
+      '',
+      defaultFieldKeys,
+      defaultArrayFieldKeys,
+    );
+
+    // Top-level array field should have unqualified key (no path prefix)
+    expect(arrayFieldsToTranslate).toContainEqual({
+      key: 'keywords',
+      value: ['keyword1', 'keyword2'],
+    });
+  });
 });

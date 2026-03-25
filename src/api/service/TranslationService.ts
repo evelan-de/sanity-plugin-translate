@@ -89,10 +89,11 @@ export const replaceTranslations = ({
 
     // Handle array fields that are marked as translatable
     if (Array.isArray(value) && translatableArrayFieldKeys.includes(key)) {
+      const qualifiedKey = path ? `${path}.${key}` : key;
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       (obj as Record<string, unknown>)[key] =
-        batchedArrayFieldTranslations.find((f) => f.key === key)?.value ||
-        value;
+        batchedArrayFieldTranslations.find((f) => f.key === qualifiedKey)
+          ?.value || value;
       return;
     }
 
@@ -205,7 +206,9 @@ export const mapFieldsToTranslate = (
 
     // Handle array fields that are marked as translatable
     if (Array.isArray(value) && translatableArrayFieldKeys.includes(key)) {
-      arrayFieldsToTranslate.push({ key, value });
+      // Use path-qualified key to uniquely identify this array field
+      const qualifiedKey = path ? `${path}.${key}` : key;
+      arrayFieldsToTranslate.push({ key: qualifiedKey, value });
       return;
     }
 
@@ -568,22 +571,48 @@ async function translateJSONData(
   const batchedArrayFieldTranslations: { key: string; value: unknown }[] = [];
   for (let i = 0; i < uniqueSpecialArrayFieldsToTranslate.length; i += 50) {
     const batch = uniqueSpecialArrayFieldsToTranslate.slice(i, i + 50);
+
+    // Track value counts per field for index mapping
+    const fieldValueCounts = batch.map((field) => {
+      if (Array.isArray(field.value)) {
+        return {
+          key: field.key,
+          count: field.value
+            .flat()
+            .filter((v) => typeof v === 'string' && v.trim() !== '').length,
+        };
+      }
+      const hasValue =
+        typeof field.value === 'string' && field.value.trim() !== '';
+      return { key: field.key, count: hasValue ? 1 : 0 };
+    });
+
     const batchValues = batch
       .map((field) =>
         Array.isArray(field.value) ? field.value.flat() : field.value,
       )
-      .flat();
+      .flat()
+      .filter((value) => typeof value === 'string' && value.trim() !== '');
+
     const translations = await translator.translateText(
-      batchValues.filter(
-        (value) => typeof value === 'string' && value.trim() !== '',
-      ),
+      batchValues,
       null,
       language,
     );
-    batchedArrayFieldTranslations.push({
-      key: batch[0].key,
-      value: translations.map((translation) => translation.text),
-    });
+
+    // Map translations back to each field individually
+    let translationIndex = 0;
+    for (const fieldInfo of fieldValueCounts) {
+      const fieldTranslations = translations.slice(
+        translationIndex,
+        translationIndex + fieldInfo.count,
+      );
+      batchedArrayFieldTranslations.push({
+        key: fieldInfo.key,
+        value: fieldTranslations.map((t) => t.text),
+      });
+      translationIndex += fieldInfo.count;
+    }
   }
 
   // Create a translation map keyed by unique field keys instead of using array indices
