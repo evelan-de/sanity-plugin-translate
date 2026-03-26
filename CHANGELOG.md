@@ -5,6 +5,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.2](https://github.com/evelan-de/sanity-plugin-translate/compare/v2.0.1...v2.0.2) (2026-03-26)
+
+### Bug Fixes
+
+- address review findings for array field translation ([3aafbd1](https://github.com/evelan-de/sanity-plugin-translate/commit/3aafbd184f46c8a5fae744c19fb197cae7df387c))
+- use path-qualified keys for array field translation ([54dda44](https://github.com/evelan-de/sanity-plugin-translate/commit/54dda44d01676b6699dea910b6ab2d7e339d5c3a))
+
 ## [2.0.1](https://github.com/evelan-de/sanity-plugin-translate/compare/v2.0.0...v2.0.1) (2026-01-24)
 
 ### Bug Fixes
